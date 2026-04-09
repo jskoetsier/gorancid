@@ -1,0 +1,14 @@
+ios;script;rancid -t ios
+ios;login;clogin
+ios;module;ios
+ios;inloop;ios::inloop
+ios;command;ios::ShowVersion;show version
+ios;command;ios::ShowRunningConfig;show running-config
+#
+junos;script;rancid -t junos
+junos;login;jlogin
+junos;module;junos
+junos;inloop;junos::inloop
+junos;command;junos::ShowVersion;show version
+#
+cat5k;alias;ios
