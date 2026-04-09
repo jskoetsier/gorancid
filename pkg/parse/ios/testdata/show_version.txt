@@ -1,0 +1,26 @@
+show version
+Cisco IOS Software, 7200 Software (C7200-ADVENTERPRISEK9-M), Version 15.2(4)S5, RELEASE SOFTWARE (fc1)
+Technical Support: http://www.cisco.com/techsupport
+Copyright (c) 1986-2015 by Cisco Systems, Inc.
+Compiled Wed 01-Apr-15 01:32 by mcchowo
+
+ROM: ROMMON Emulation Microcode
+BOOTLDR: 7200 Software (C7200-BOOT-M), Version 12.2(4)B, EARLY DEPLOYMENT RELEASE SOFTWARE (fc1)
+
+Router uptime is 1 year 12 weeks 3 days 14 hours 22 minutes
+System returned to ROM by reload at 14:32:18 UTC Mon Mar 2 2015
+System image file is "flash:c7200-adventerprisek9-mz.152-4.S5.bin"
+Last reload type: Normal Reload
+Last reload reason: Reload Command
+
+Cisco 7206VXR (NPE-G1) (revision A0) processor with 524288K/65536K bytes of memory.
+Processor board ID FTX1234ABCD
+CPU: MPC7447A, revision 2.2
+6 FastEthernet interfaces
+4 Gigabit Ethernet interfaces
+509K bytes of NVRAM
+8192K bytes of Flash internal SIMM (Boot sector)
+Configuration register is 0x2102
+
+Load for five secs: 2%/0%; one minute: 2%; five minutes: 1%
+Time source is NTP, 14:32:18.123 UTC Mon Mar 2 2015

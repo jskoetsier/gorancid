@@ -1,0 +1,41 @@
+admin show version
+Cisco IOS XR Software, Copyright (c) 2006-2024 by Cisco Systems, Inc.
+
+Cisco IOS XR Software (xrv9k),  Version 7.11.2
+Copyright (c) 2013-2024 by Cisco Systems, Inc.
+
+ROM: System Bootstrap, Version 16.06
+
+System image file is "disk0:xrv9k-full-7.11.2"
+
+cisco XRv9K (Intel Xeon) processor with 8192K bytes of memory.
+processor board id XRV9876ABCD
+
+Serial Number: ABC1234DEF
+Configuration register is 0x2102
+Mon Mar  3 03:03:03.303 UTC
+
+RP/0/RP0/CPU0:xrv9k#
+show running-config
+!Command: show running-config
+!Time: Mon Mar 03 2024 03:03:03
+Building configuration...
+hostname xrv9k-router
+!
+enable password myenablepw
+enable secret 5 $1$xyz$SECRET
+!
+username admin secret 5 $1$xyz$ADMIN
+username operator password 0 plainpw
+!
+interface GigabitEthernet0/0/0/0
+ ip address 192.168.1.1 255.255.255.0
+!
+snmp-server community rocommunity RO
+snmp-server community rwcommunity RW
+snmp-server host 192.168.1.100 rocommunity version 2c
+!
+$Revision: 1.5 $
+$Id: running.cfg,v 1.2 2024/03/03 00:00:00 admin Exp $
+!
+end

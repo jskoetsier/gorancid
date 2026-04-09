@@ -1,0 +1,23 @@
+admin show version
+Cisco IOS XR Software, Copyright (c) 2006-2024 by Cisco Systems, Inc.
+
+Cisco IOS XR Software, Version 7.11.2
+Cisco IOSXR Software (ASR-9000),  Version 7.11.2
+Copyright (c) 2013-2024 by Cisco Systems, Inc.
+
+ROM: System Bootstrap, Version 16.06(20190723:173102) [ASR9K ROMMON]
+
+System image file is "disk0:asr9k-os-mbi-7.11.2.sp1-1.0.0"
+
+cisco ASR-9006 (Intel 8-core CPU) processor with 16384K bytes of memory.
+processor board id FXS1234G56Y
+ASR-9006 Chassis
+
+389232K bytes of physical memory.
+32768K bytes of non-volatile configuration memory.
+4096K bytes of Flash internal SIMM.
+
+Configuration register is 0x2102
+Thu Apr  9 15:30:22.546 UTC
+
+RP/0/RSP0/CPU0:router#
