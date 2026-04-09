@@ -1,0 +1,33 @@
+stages:
+  - test
+  - build
+
+variables:
+  CGO_ENABLED: "0"
+
+test:
+  stage: test
+  image: golang:1.22-bookworm
+  script:
+    - go test ./... -v -race
+  rules:
+    - when: always
+
+build:
+  stage: build
+  image: golang:1.22-bookworm
+  script:
+    - mkdir -p bin
+    - GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/rancid-cvs-linux-amd64 ./cmd/rancid-cvs/
+    - GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/control-rancid-linux-amd64 ./cmd/control-rancid/
+    - GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/rancid-run-linux-amd64 ./cmd/rancid-run/
+    - GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o bin/rancid-cvs-linux-arm64 ./cmd/rancid-cvs/
+    - GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o bin/control-rancid-linux-arm64 ./cmd/control-rancid/
+    - GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o bin/rancid-run-linux-arm64 ./cmd/rancid-run/
+  artifacts:
+    paths:
+      - bin/
+    expire_in: 30 days
+  rules:
+    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
