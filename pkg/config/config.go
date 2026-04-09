@@ -49,6 +49,8 @@ func Load(path string) (Config, error) {
 	}
 	defer f.Close()
 
+	// env collects all KEY=value pairs; only known keys are transferred to cfg below.
+	// Unknown keys (e.g. PATH, TERM, RCSSYS) are intentionally discarded.
 	env := make(map[string]string)
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
@@ -96,6 +98,8 @@ func Load(path string) (Config, error) {
 	return cfg, nil
 }
 
+// parseFilterMode converts a FILTER_PWDS/FILTER_OSC string to a FilterMode.
+// An empty or unrecognised value defaults to FilterYes (safe default — filtering on).
 func parseFilterMode(s string) FilterMode {
 	switch strings.ToUpper(strings.TrimSpace(s)) {
 	case "NO":
