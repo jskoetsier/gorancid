@@ -1,0 +1,6 @@
+# router.db for core group
+core-sw-01.example.com:ios:up
+core-sw-02.example.com:ios:up
+edge-fw-01.example.com:fortigate:up
+old-router.example.com:ios:down
+# edge-sw-03.example.com:nxos:up
