@@ -1,0 +1,55 @@
+package git
+
+import (
+	"errors"
+	"fmt"
+	"os/exec"
+	"strings"
+)
+
+// Init initializes a new git repository in dir.
+func Init(dir string) error {
+	if err := run(dir, "git", "init"); err != nil {
+		return err
+	}
+	// Set required git identity for commits to work in isolated environments.
+	_ = run(dir, "git", "config", "user.email", "rancid@localhost")
+	_ = run(dir, "git", "config", "user.name", "rancid")
+	return nil
+}
+
+// Add stages files for commit.
+func Add(dir string, files []string) error {
+	args := append([]string{"add", "--"}, files...)
+	return run(dir, "git", args...)
+}
+
+// Commit commits all staged changes with message.
+func Commit(dir, message string) error {
+	return run(dir, "git", "commit", "-m", message)
+}
+
+// Diff returns the staged diff for file. Returns empty bytes if no changes.
+func Diff(dir, file string) ([]byte, error) {
+	cmd := exec.Command("git", "diff", "--cached", "--", file)
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return out, nil
+		}
+		return nil, fmt.Errorf("git diff: %w", err)
+	}
+	return out, nil
+}
+
+func run(dir, name string, args ...string) error {
+	cmd := exec.Command(name, args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s %s: %w\n%s", name, strings.Join(args, " "), err, out)
+	}
+	return nil
+}
