@@ -58,47 +58,31 @@ func LoadCloginrc(path string) (*CredStore, error) {
 	return cs, scanner.Err()
 }
 
-// isExactPattern returns true if the pattern contains no glob metacharacters.
-func isExactPattern(pattern string) bool {
-	return !strings.ContainsAny(pattern, "*?[")
-}
-
 // Lookup returns credentials for hostname.
-// Exact-match patterns take priority over glob patterns; among patterns of
-// equal specificity the first entry in file order wins.
+// The first matching entry per field wins — place specific patterns before
+// wildcards in .cloginrc to ensure correct precedence.
 func (cs *CredStore) Lookup(hostname string) Credentials {
 	var creds Credentials
-	// Track best match per field: exact wins over glob.
-	type match struct {
-		value string
-		exact bool
-	}
-	best := make(map[string]match)
+	found := make(map[string]bool)
 	for _, e := range cs.entries {
+		if found[e.field] {
+			continue
+		}
 		matched, _ := filepath.Match(e.pattern, hostname)
 		if !matched {
 			continue
 		}
-		exact := isExactPattern(e.pattern)
-		if prev, ok := best[e.field]; ok {
-			// Already have a match; only replace if current is exact and prev is not.
-			if prev.exact || !exact {
-				continue
-			}
+		found[e.field] = true
+		switch e.field {
+		case "user":
+			creds.Username = e.value
+		case "password":
+			creds.Password = e.value
+		case "enablepassword":
+			creds.EnablePwd = e.value
+		case "method":
+			creds.Methods = strings.Fields(e.value)
 		}
-		best[e.field] = match{value: e.value, exact: exact}
-	}
-	if m, ok := best["user"]; ok {
-		creds.Username = m.value
-	}
-	if m, ok := best["password"]; ok {
-		creds.Password = m.value
-	}
-	if m, ok := best["enablepassword"]; ok {
-		creds.EnablePwd = m.value
-	}
-	if m, ok := best["method"]; ok {
-		creds.Methods = strings.Fields(m.value)
 	}
 	return creds
 }

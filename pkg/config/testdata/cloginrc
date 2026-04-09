@@ -3,5 +3,5 @@ add user * netops
 add password core-sw-01.example.com s3cr3t
 add password *.example.com d3fault
 add enablepassword * en4ble
-add method * {ssh telnet}
 add method old-router.example.com {telnet}
+add method * {ssh telnet}
