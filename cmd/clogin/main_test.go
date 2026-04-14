@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"gorancid/pkg/config"
+	"gorancid/pkg/devicetype"
 )
 
 func TestSplitCommands(t *testing.T) {
@@ -74,5 +75,67 @@ func TestResolveConfigPath(t *testing.T) {
 	_ = os.Unsetenv("RANCID_CONF")
 	if got := resolveConfigPath("", ""); got != "/usr/local/rancid/etc/rancid.conf" {
 		t.Fatalf("default path = %q", got)
+	}
+}
+
+func TestResolveSysconfDir(t *testing.T) {
+	t.Setenv("RANCID_SYSCONFDIR", "/env/etc")
+	if got := resolveSysconfDir("/flag/rancid.conf"); got != "/env/etc" {
+		t.Fatalf("env sysconfdir = %q", got)
+	}
+
+	t.Setenv("RANCID_SYSCONFDIR", "")
+	if got := resolveSysconfDir("/etc/rancid/rancid.conf"); got != "/etc/rancid" {
+		t.Fatalf("derived sysconfdir = %q", got)
+	}
+	if got := resolveSysconfDir(""); got != "/usr/local/rancid/etc" {
+		t.Fatalf("default sysconfdir = %q", got)
+	}
+}
+
+func TestEnsureParserCoverage(t *testing.T) {
+	specs := map[string]devicetype.DeviceSpec{
+		"fortigate-full": {Type: "fortigate-full", Modules: []string{"fortigate"}},
+		"juniper-srx":    {Type: "juniper-srx", Alias: "junos"},
+		"fortiscp":       {Type: "fortiscp"},
+	}
+
+	ensureParserCoverage(specs)
+
+	if !canUseNative("fortigate-full", []string{"ssh"}) {
+		t.Fatal("expected fortigate-full to use native parser coverage")
+	}
+	if !canUseNative("juniper-srx", []string{"ssh"}) {
+		t.Fatal("expected juniper-srx alias to use native parser coverage")
+	}
+	if !canUseNative("fortiscp", []string{"ssh"}) {
+		t.Fatal("expected fortiscp to inherit native FortiGate parser coverage")
+	}
+}
+
+func TestResolveLegacyLoginScript(t *testing.T) {
+	if got := resolveLegacyLoginScript(devicetype.DeviceSpec{Type: "fortiscp"}); got != "fnlogin" {
+		t.Fatalf("fortiscp legacy script = %q, want fnlogin", got)
+	}
+	if got := resolveLegacyLoginScript(devicetype.DeviceSpec{Type: "juniper-srx"}); got != "jlogin" {
+		t.Fatalf("juniper-srx legacy script = %q, want jlogin", got)
+	}
+	if got := resolveLegacyLoginScript(devicetype.DeviceSpec{Type: "cisco"}); got != "clogin" {
+		t.Fatalf("cisco legacy script = %q, want clogin", got)
+	}
+}
+
+func TestScriptSupports(t *testing.T) {
+	if !scriptSupports("clogin", "enable-password") {
+		t.Fatal("clogin should support enable-password")
+	}
+	if scriptSupports("fnlogin", "enable-password") {
+		t.Fatal("fnlogin should not support enable-password")
+	}
+	if scriptSupports("fnlogin", "interactive") {
+		t.Fatal("fnlogin should not support interactive flag")
+	}
+	if !scriptSupports("fnlogin", "password") {
+		t.Fatal("fnlogin should support password override")
 	}
 }

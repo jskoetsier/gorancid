@@ -1,0 +1,3 @@
+add user ix5-rtr-p01-re0 rancid
+add password ix5-rtr-p01-re0 {loginpass} {enablepass}
+add method ix5-rtr-p01-re0 {ssh}

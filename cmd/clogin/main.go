@@ -24,7 +24,7 @@ import (
 	_ "gorancid/pkg/parse/nxos"
 )
 
-const version = "0.3.0"
+const version = "0.3.1"
 
 func main() {
 	var (
@@ -60,10 +60,7 @@ func main() {
 	if cloginPath == "" {
 		cloginPath = filepath.Join(os.Getenv("HOME"), ".cloginrc")
 	}
-	sysconfdir := os.Getenv("RANCID_SYSCONFDIR")
-	if sysconfdir == "" {
-		sysconfdir = "/usr/local/rancid/etc"
-	}
+	sysconfdir := resolveSysconfDir(confPath)
 
 	cfg, err := config.Load(confPath)
 	if err != nil {
@@ -80,6 +77,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("devicetype: %v", err)
 	}
+	ensureParserCoverage(specs)
 
 	resolvedType := *deviceType
 	if resolvedType == "" {
@@ -112,13 +110,29 @@ func main() {
 	timeout := time.Duration(*timeoutSec) * time.Second
 	commands := splitCommands(*commandStr)
 	if canUseNative(spec.Type, creds.Methods) {
+		fmt.Fprintf(os.Stderr, "using native ssh: type=%s host=%s\n", spec.Type, hostname)
 		if err := runNative(context.Background(), hostname, spec.Type, creds, commands, timeout, *noEnable, *autoEnable, *interactive || len(commands) == 0); err != nil {
 			log.Fatalf("clogin: %v", err)
 		}
 		return
 	}
 
-	if err := runLegacy(context.Background(), spec.LoginScript, hostname, cloginPath, commands, creds, *timeoutSec, *noEnable, *autoEnable, *interactive); err != nil {
+	legacyScript := resolveLegacyLoginScript(spec)
+	fmt.Fprintf(os.Stderr, "falling back to legacy login script: script=%s type=%s host=%s\n", legacyScript, spec.Type, hostname)
+	if err := runLegacy(
+		context.Background(),
+		legacyScript,
+		hostname,
+		cloginPath,
+		commands,
+		*timeoutSec,
+		*noEnable,
+		*autoEnable,
+		*interactive,
+		*username,
+		*password,
+		*enablePwd,
+	); err != nil {
 		log.Fatalf("clogin fallback: %v", err)
 	}
 }
@@ -139,6 +153,16 @@ func resolveConfigPath(primary, secondary string) string {
 		return confPath
 	}
 	return "/usr/local/rancid/etc/rancid.conf"
+}
+
+func resolveSysconfDir(confPath string) string {
+	if sysconfdir := os.Getenv("RANCID_SYSCONFDIR"); sysconfdir != "" {
+		return sysconfdir
+	}
+	if confPath != "" {
+		return filepath.Dir(confPath)
+	}
+	return "/usr/local/rancid/etc"
 }
 
 func findDevice(hostname string, cfg config.Config, routerDBPath string) (config.Device, string, error) {
@@ -186,10 +210,14 @@ func splitCommands(raw string) []string {
 }
 
 func canUseNative(deviceType string, methods []string) bool {
-	if _, ok := parse.Lookup(deviceType); !ok {
+	parser, ok := parse.Lookup(deviceType)
+	if !ok {
 		return false
 	}
-	_, ok := firstSSHMethod(methods)
+	if _, ok := parser.(interface{ DeviceOpts() connect.DeviceOpts }); !ok {
+		return false
+	}
+	_, ok = firstSSHMethod(methods)
 	return ok
 }
 
@@ -280,7 +308,31 @@ func wantsEnable(deviceType string) bool {
 	}
 }
 
-func runLegacy(ctx context.Context, loginScript, hostname, cloginrc string, commands []string, creds config.Credentials, timeoutSec int, noEnable, autoEnable, interactive bool) error {
+func resolveLegacyLoginScript(spec devicetype.DeviceSpec) string {
+	if spec.LoginScript != "" {
+		return spec.LoginScript
+	}
+	for _, module := range spec.Modules {
+		switch strings.ToLower(module) {
+		case "fortigate":
+			return "fnlogin"
+		case "junos":
+			return "jlogin"
+		case "ios", "iosxr", "nxos":
+			return "clogin"
+		}
+	}
+	switch {
+	case strings.HasPrefix(strings.ToLower(spec.Type), "forti"):
+		return "fnlogin"
+	case strings.HasPrefix(strings.ToLower(spec.Type), "jun"):
+		return "jlogin"
+	default:
+		return "clogin"
+	}
+}
+
+func runLegacy(ctx context.Context, loginScript, hostname, cloginrc string, commands []string, timeoutSec int, noEnable, autoEnable, interactive bool, username, password, enablePwd string) error {
 	bin := loginScript
 	if bin == "" {
 		bin = "clogin"
@@ -290,28 +342,28 @@ func runLegacy(ctx context.Context, loginScript, hostname, cloginrc string, comm
 	if cloginrc != "" {
 		args = append(args, "-f", cloginrc)
 	}
-	if creds.Username != "" {
-		args = append(args, "-u", creds.Username)
+	if username != "" && scriptSupports(bin, "username") {
+		args = append(args, "-u", username)
 	}
-	if creds.Password != "" {
-		args = append(args, "-p", creds.Password)
+	if password != "" && scriptSupports(bin, "password") {
+		args = append(args, "-p", password)
 	}
-	if creds.EnablePwd != "" {
-		args = append(args, "-e", creds.EnablePwd)
+	if enablePwd != "" && scriptSupports(bin, "enable-password") {
+		args = append(args, "-e", enablePwd)
 	}
 	if timeoutSec > 0 {
 		args = append(args, "-t", strconv.Itoa(timeoutSec))
 	}
-	if noEnable {
+	if noEnable && scriptSupports(bin, "noenable") {
 		args = append(args, "-noenable")
 	}
-	if autoEnable {
+	if autoEnable && scriptSupports(bin, "autoenable") {
 		args = append(args, "-autoenable")
 	}
 	if len(commands) > 0 {
 		args = append(args, "-c", strings.Join(commands, "; "))
 	}
-	if interactive {
+	if interactive && scriptSupports(bin, "interactive") {
 		args = append(args, "-i")
 	}
 	args = append(args, hostname)
@@ -321,4 +373,25 @@ func runLegacy(ctx context.Context, loginScript, hostname, cloginrc string, comm
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
+}
+
+func scriptSupports(script, capability string) bool {
+	switch strings.ToLower(script) {
+	case "clogin":
+		return true
+	case "fnlogin", "jlogin":
+		switch capability {
+		case "username", "password":
+			return true
+		default:
+			return false
+		}
+	default:
+		switch capability {
+		case "username", "password":
+			return true
+		default:
+			return false
+		}
+	}
 }

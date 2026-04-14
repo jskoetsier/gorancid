@@ -24,7 +24,7 @@ type FortiGateParser struct{}
 func (p *FortiGateParser) DeviceOpts() connect.DeviceOpts {
 	return connect.DeviceOpts{
 		DeviceType:       "fortigate",
-		PromptPattern:    `[\r\n][\w./-]+[#\$]\s*$`,
+		PromptPattern:    `(?:^|[\r\n])[^\r\n]*[#\$]\s*$`,
 		SetupCommands:    []string{"config system console", "set output standard", "end"},
 		EnableCmd:        "",
 		DisablePagingCmd: "config system console\nset output standard\nend",
@@ -82,7 +82,7 @@ func (p *FortiGateParser) Parse(output []byte, filter parse.FilterOpts) (parse.P
 type section int
 
 const (
-	sectionUnknown     section = iota
+	sectionUnknown section = iota
 	sectionSystemStatus
 	sectionShowConf
 )

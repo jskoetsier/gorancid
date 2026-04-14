@@ -40,6 +40,8 @@ Complete Go parser coverage for all device types from `rancid.types.{base,conf}`
 
 All device types have Go parser coverage. Remove Expect/Tcl transport dependency entirely.
 
+Current status after `v0.3.1`: native interactive `clogin` has been hardened for the supported SSH families with real `.cloginrc`, `router.db`, auth, terminal, and prompt compatibility. Legacy login-script fallback still remains for the unsupported device long tail.
+
 - [ ] Remove `FallbackCollector` and Expect subprocess path
 - [ ] Remove legacy login-script transport dependency
 - [ ] Standalone Go binary — no external runtime dependencies

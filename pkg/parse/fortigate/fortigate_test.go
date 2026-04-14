@@ -108,6 +108,28 @@ func TestMetadataExtraction(t *testing.T) {
 	}
 }
 
+func TestDeviceOptsPromptPatternMatchesInteractivePrompts(t *testing.T) {
+	p := &FortiGateParser{}
+	opts := p.DeviceOpts()
+	re, err := regexp.Compile(opts.PromptPattern)
+	if err != nil {
+		t.Fatalf("PromptPattern does not compile: %v", err)
+	}
+
+	prompts := []string{
+		"dc2-fw-mgmt-p01 $",
+		"\ndc2-fw-mgmt-p01 $",
+		"\ndc2-fw-mgmt-p01 #",
+		"\ndc2-fw-mgmt-p01 (global) #",
+		"\ndc2-fw-mgmt-p01 (interface) $",
+	}
+	for _, prompt := range prompts {
+		if !re.MatchString(prompt) {
+			t.Fatalf("prompt pattern %q did not match %q", opts.PromptPattern, prompt)
+		}
+	}
+}
+
 // ---------------------------------------------------------------------------
 // System status filtering tests
 // ---------------------------------------------------------------------------
@@ -498,7 +520,7 @@ func TestDeviceOpts(t *testing.T) {
 	if opts.DeviceType != "fortigate" {
 		t.Errorf("DeviceType = %q, want %q", opts.DeviceType, "fortigate")
 	}
-	if opts.PromptPattern != `[\r\n][\w./-]+[#\$]\s*$` {
+	if opts.PromptPattern != `(?:^|[\r\n])[^\r\n]*[#\$]\s*$` {
 		t.Errorf("PromptPattern = %q, unexpected value", opts.PromptPattern)
 	}
 	if len(opts.SetupCommands) != 3 {

@@ -4,6 +4,50 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.1] - 2026-04-14
+
+### Changed
+
+- **cmd/clogin**: Added `-C` / `-config` support for selecting `rancid.conf`, and derived `rancid.types.*` lookup from the chosen config path
+- **pkg/config**: `router.db` parsing now accepts both `hostname:type:status` and `hostname;type;status`
+- **pkg/config**: `.cloginrc` parsing now supports multi-value `password` entries, `userpassword`, and braced method definitions
+- **pkg/connect**: Native SSH now supports keyboard-interactive auth and proper interactive terminal behavior (raw mode, PTY sizing, resize propagation)
+- **cmd/clogin**: Native vs legacy login selection now follows device-family behavior more accurately, with explicit transport notices
+- **pkg/parse**: Prompt detection widened for Cisco, Juniper, and FortiGate interactive sessions so native SSH login no longer stalls on initial prompts
+
+## [0.3.0] - 2026-04-14
+
+### Added
+
+- **cmd/clogin**: Go replacement for `clogin` / `plogin` with `.cloginrc` support, `router.db` device-type lookup, native SSH for supported parsers, and fallback to legacy login scripts where required
+- **cmd/rancid**: Full Go parser coverage across the `rancid.types.{base,conf}` surface via dedicated parsers, alias registration, and a generic parser for long-tail device types
+- **pkg/parse/generic**: Generic Go parser for device types without a dedicated parser implementation yet
+
+### Changed
+
+- **pkg/connect**: SSH sessions now correctly execute setup and enable commands before interactive use
+- **pkg/connect**: Session selection now prefers native SSH transport only when SSH methods are available, otherwise falling back to legacy login scripts
+- **ci**: Build pipeline now publishes `clogin` and `rancid` artifacts and uses a Go toolchain compatible with `go.mod`
+- **roadmap**: Phase 3 marked complete; Phase 4 now tracks transport dependency removal and the Web UI work
+
+## [0.2.0] - 2026-04-09
+
+### Added
+
+- **pkg/connect**: Native SSH connector using `golang.org/x/crypto/ssh` with PTY allocation, prompt detection, and command execution
+- **pkg/connect**: Expect subprocess fallback for legacy login-script execution
+- **pkg/parse**: Device parser registry and shared filter options
+- **pkg/parse/ios**: Cisco IOS parser with metadata extraction and RANCID-style filtering
+- **pkg/parse/iosxr**: Cisco IOS-XR parser with metadata extraction and config normalization
+- **pkg/parse/junos**: Juniper JunOS parser with version/config parsing and retry-trigger handling
+- **pkg/parse/nxos**: Cisco NX-OS parser with metadata extraction and config filtering
+- **pkg/parse/fortigate**: Fortinet FortiGate parser with system-status/config parsing and secret filtering
+- **cmd/rancid**: Per-device collector binary replacing the Perl `rancid` entrypoint for supported device types
+
+### Changed
+
+- **README / ROADMAP**: Project status updated from orchestration-only to native collection plus core parsers
+
 ## [0.1.0] - 2026-04-09
 
 ### Added

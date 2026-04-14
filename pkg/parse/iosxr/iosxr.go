@@ -26,7 +26,7 @@ func init() {
 func (p *IOSXRParser) DeviceOpts() connect.DeviceOpts {
 	return connect.DeviceOpts{
 		DeviceType:       "iosxr",
-		PromptPattern:    `[\r\n][\w./-:\-]+#\s*$`,
+		PromptPattern:    `(?:^|[\r\n])[\w./:-]+(?:\([^)]+\))*#\s*$`,
 		SetupCommands:    []string{"terminal length 0", "terminal width 0", "terminal no-timestamp"},
 		EnableCmd:        "",
 		DisablePagingCmd: "terminal length 0",
@@ -36,12 +36,12 @@ func (p *IOSXRParser) DeviceOpts() connect.DeviceOpts {
 // Pre-compiled regular expressions used during parsing.
 var (
 	// ShowVersion patterns
-	reVersion = regexp.MustCompile(`^(Cisco )?IOS .* Software,? \(([A-Za-z0-9_-]*)\), .*Version\s+(.*)$`)
-	reSerial  = regexp.MustCompile(`(?i)processor board id (\S+)`)
-	reSerial2 = regexp.MustCompile(`^Serial Number:\s+(.*)$`)
-	reConfigReg = regexp.MustCompile(`^Configuration register is (.*)$`)
+	reVersion       = regexp.MustCompile(`^(Cisco )?IOS .* Software,? \(([A-Za-z0-9_-]*)\), .*Version\s+(.*)$`)
+	reSerial        = regexp.MustCompile(`(?i)processor board id (\S+)`)
+	reSerial2       = regexp.MustCompile(`^Serial Number:\s+(.*)$`)
+	reConfigReg     = regexp.MustCompile(`^Configuration register is (.*)$`)
 	reConfigRegNode = regexp.MustCompile(`^Configuration register on node \S+ is (.*)$`)
-	reBootImage = regexp.MustCompile(`^System image file is "([^"]*)"`)
+	reBootImage     = regexp.MustCompile(`^System image file is "([^"]*)"`)
 
 	// Common filter patterns (shared between ShowVersion and WriteTerm)
 	reTimestamp = regexp.MustCompile(`^\w{3} \w{3,4} {1,3}\d{1,2} {1,2}\d{1,2}:\d+:\d+\.\d+ \S+$`)
@@ -49,50 +49,50 @@ var (
 	reNCSError  = regexp.MustCompile(`(?i)^(-+\^|syntax error: unknown argument)$`)
 
 	// WriteTerm header / volatile lines
-	reCmdHeader    = regexp.MustCompile(`^!Command: show running-config`)
-	reTimeHeader   = regexp.MustCompile(`^!Time:`)
+	reCmdHeader   = regexp.MustCompile(`^!Command: show running-config`)
+	reTimeHeader  = regexp.MustCompile(`^!Time:`)
 	reBuildingCfg = regexp.MustCompile(`^(?i)building configuration.*`)
 	reNoChange    = regexp.MustCompile(`^! no configuration change since last restart`)
 	reLastChange  = regexp.MustCompile(`^! (Last configuration|NVRAM config last)`)
-	reWrittenBy    = regexp.MustCompile(`^: (Written by \S+ at|Saved)`)
-	reNTPClock     = regexp.MustCompile(`^ntp clock-period `)
-	reTFTPFlash    = regexp.MustCompile(`^tftp-server flash `)
-	reFairQueue    = regexp.MustCompile(`fair-queue individual-limit`)
-	reClockRate    = regexp.MustCompile(`^ clockrate `)
+	reWrittenBy   = regexp.MustCompile(`^: (Written by \S+ at|Saved)`)
+	reNTPClock    = regexp.MustCompile(`^ntp clock-period `)
+	reTFTPFlash   = regexp.MustCompile(`^tftp-server flash `)
+	reFairQueue   = regexp.MustCompile(`fair-queue individual-limit`)
+	reClockRate   = regexp.MustCompile(`^ clockrate `)
 
 	// Password / secret filtering patterns
-	reEnablePassword = regexp.MustCompile(`^(enable )?(password|passwd)( level \d+)? `)
-	reEnableSecret   = regexp.MustCompile(`^(enable secret) `)
-	reUsernameSecret = regexp.MustCompile(`^username (\S+)(\s.*)? secret `)
+	reEnablePassword   = regexp.MustCompile(`^(enable )?(password|passwd)( level \d+)? `)
+	reEnableSecret     = regexp.MustCompile(`^(enable secret) `)
+	reUsernameSecret   = regexp.MustCompile(`^username (\S+)(\s.*)? secret `)
 	reUsernamePassword = regexp.MustCompile(`^username (\S+)(\s.*)? password ((\d) \S+|\S+)`)
-	reSessionKeyAH   = regexp.MustCompile(`^( set session-key (in|out)bound ah \d+ )`)
-	reSessionKeyESP  = regexp.MustCompile(`^( set session-key (in|out)bound esp \d+ (authenticator|cypher) )`)
-	reLinePassword   = regexp.MustCompile(`^(\s*)password `)
-	reLineSecret     = regexp.MustCompile(`^(\s*)secret `)
-	reBGPNeighborPwd = regexp.MustCompile(`^\s*neighbor (\S*) password `)
-	rePPPPassword    = regexp.MustCompile(`^(ppp .* password) 7 .*`)
-	reFTPClientPwd   = regexp.MustCompile(`^(ftp client password) `)
-	reOSPFAuthKey    = regexp.MustCompile(`^( ip ospf authentication-key) `)
-	reISISPassword   = regexp.MustCompile(`^\s+isis password (\S+)( .*)?`)
-	reISISDomainPwd  = regexp.MustCompile(`^\s+(domain-password|area-password) (\S+)( .*)?`)
-	reOSPFDigestKey  = regexp.MustCompile(`^( ip ospf message-digest-key \d+ md5) `)
-	reMD5Key         = regexp.MustCompile(`^(  message-digest-key \d+ md5 (7|encrypted)) `)
-	reISAKMPKey      = regexp.MustCompile(`^((crypto )?isakmp key) \S+ `)
-	reHSRPAuth       = regexp.MustCompile(`^(\s+standby \d+ authentication) `)
-	reKeyString      = regexp.MustCompile(`^(\s+key-string \d?)`)
-	reL2TPTunnel     = regexp.MustCompile(`^( l2tp tunnel \S+ password)`)
-	reVPDNUsername   = regexp.MustCompile(`^(vpdn username (\S+) password)`)
-	rePreSharedKey   = regexp.MustCompile(`^( pre-shared-key | key |failover key ).*`)
-	reLDAPLoginPwd   = regexp.MustCompile(`(\s+ldap-login-password )\S+(.*)`)
-	reCableShared    = regexp.MustCompile(`^( cable shared-secret )`)
-	reTacacsKey      = regexp.MustCompile(`^((tacacs|radius)-server\s(\w*[-\s(\s\S+])*\s?key) (\d )?\w+`)
-	reNTPAuthKey     = regexp.MustCompile(`^(ntp authentication-key \d+ md5) `)
-	reSysconPwd      = regexp.MustCompile(`^syscon password (\S*)`)
-	reSysconAddr     = regexp.MustCompile(`^syscon address (\S*) (\S*)`)
+	reSessionKeyAH     = regexp.MustCompile(`^( set session-key (in|out)bound ah \d+ )`)
+	reSessionKeyESP    = regexp.MustCompile(`^( set session-key (in|out)bound esp \d+ (authenticator|cypher) )`)
+	reLinePassword     = regexp.MustCompile(`^(\s*)password `)
+	reLineSecret       = regexp.MustCompile(`^(\s*)secret `)
+	reBGPNeighborPwd   = regexp.MustCompile(`^\s*neighbor (\S*) password `)
+	rePPPPassword      = regexp.MustCompile(`^(ppp .* password) 7 .*`)
+	reFTPClientPwd     = regexp.MustCompile(`^(ftp client password) `)
+	reOSPFAuthKey      = regexp.MustCompile(`^( ip ospf authentication-key) `)
+	reISISPassword     = regexp.MustCompile(`^\s+isis password (\S+)( .*)?`)
+	reISISDomainPwd    = regexp.MustCompile(`^\s+(domain-password|area-password) (\S+)( .*)?`)
+	reOSPFDigestKey    = regexp.MustCompile(`^( ip ospf message-digest-key \d+ md5) `)
+	reMD5Key           = regexp.MustCompile(`^(  message-digest-key \d+ md5 (7|encrypted)) `)
+	reISAKMPKey        = regexp.MustCompile(`^((crypto )?isakmp key) \S+ `)
+	reHSRPAuth         = regexp.MustCompile(`^(\s+standby \d+ authentication) `)
+	reKeyString        = regexp.MustCompile(`^(\s+key-string \d?)`)
+	reL2TPTunnel       = regexp.MustCompile(`^( l2tp tunnel \S+ password)`)
+	reVPDNUsername     = regexp.MustCompile(`^(vpdn username (\S+) password)`)
+	rePreSharedKey     = regexp.MustCompile(`^( pre-shared-key | key |failover key ).*`)
+	reLDAPLoginPwd     = regexp.MustCompile(`(\s+ldap-login-password )\S+(.*)`)
+	reCableShared      = regexp.MustCompile(`^( cable shared-secret )`)
+	reTacacsKey        = regexp.MustCompile(`^((tacacs|radius)-server\s(\w*[-\s(\s\S+])*\s?key) (\d )?\w+`)
+	reNTPAuthKey       = regexp.MustCompile(`^(ntp authentication-key \d+ md5) `)
+	reSysconPwd        = regexp.MustCompile(`^syscon password (\S*)`)
+	reSysconAddr       = regexp.MustCompile(`^syscon address (\S*) (\S*)`)
 
 	// SNMP community filtering
 	reSNMPCommunity = regexp.MustCompile(`^(snmp-server community) (\S+)`)
-	reSNMPHost     = regexp.MustCompile(`^snmp-server host (\d+\.\d+\.\d+\.\d+) `)
+	reSNMPHost      = regexp.MustCompile(`^snmp-server host (\d+\.\d+\.\d+\.\d+) `)
 
 	// CVS tag neutralisation
 	reCVSTag = regexp.MustCompile(`\$(Revision|Id):`)
@@ -312,8 +312,9 @@ func (p *IOSXRParser) Parse(output []byte, filter parse.FilterOpts) (parse.Parse
 
 // reChassis matches the processor/chassis line from show version.
 // IOS-XR devices report chassis info like:
-//   "cisco ASR-9006 (...)
-//   "cisco CRS-16/S (...)
+//
+//	"cisco ASR-9006 (...)
+//	"cisco CRS-16/S (...)
 var reChassis = regexp.MustCompile(`^(?i)cisco (\S+(?:\s+series)?)\s+\(`)
 
 // applyPasswordFilters applies all password/secret/community filtering rules

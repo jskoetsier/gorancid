@@ -34,3 +34,22 @@ func TestLoadRouterDBMalformed(t *testing.T) {
 		t.Error("expected error for malformed router.db, got nil")
 	}
 }
+
+func TestLoadRouterDBSemicolon(t *testing.T) {
+	devices, err := config.LoadRouterDB("testdata/router_semicolon.db")
+	if err != nil {
+		t.Fatalf("LoadRouterDB: %v", err)
+	}
+	if len(devices) != 2 {
+		t.Fatalf("got %d devices, want 2", len(devices))
+	}
+	if devices[1].Hostname != "ix5-rtr-p01" {
+		t.Errorf("devices[1].Hostname = %q", devices[1].Hostname)
+	}
+	if devices[1].Type != "cisco" {
+		t.Errorf("devices[1].Type = %q", devices[1].Type)
+	}
+	if devices[1].Status != "up" {
+		t.Errorf("devices[1].Status = %q", devices[1].Status)
+	}
+}

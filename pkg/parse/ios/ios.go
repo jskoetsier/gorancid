@@ -26,7 +26,7 @@ type IOSParser struct{}
 func (p *IOSParser) DeviceOpts() connect.DeviceOpts {
 	return connect.DeviceOpts{
 		DeviceType:       "ios",
-		PromptPattern:    `[!\r\n][\w./-]+[#>]\s*$`,
+		PromptPattern:    `(?:^|[\r\n])[\w./:-]+(?:\([^)]+\))*[#>]\s*$`,
 		SetupCommands:    []string{"terminal length 0", "terminal width 0"},
 		EnableCmd:        "enable",
 		DisablePagingCmd: "terminal length 0",

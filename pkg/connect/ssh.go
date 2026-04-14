@@ -1,16 +1,19 @@
 package connect
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"net"
+	"os"
+	"os/signal"
 	"regexp"
 	"strings"
+	"syscall"
 	"time"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/sys/unix"
 
 	"gorancid/pkg/config"
 )
@@ -47,12 +50,9 @@ func (s *SSHSession) Connect(ctx context.Context) error {
 	// Build SSH config
 	sshConfig := &ssh.ClientConfig{
 		User:            s.Creds.Username,
-		Auth:            []ssh.AuthMethod{},
+		Auth:            sshAuthMethods(s.Creds),
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // RANCID doesn't check host keys
 		Timeout:         15 * time.Second,
-	}
-	if s.Creds.Password != "" {
-		sshConfig.Auth = append(sshConfig.Auth, ssh.Password(s.Creds.Password))
 	}
 
 	// Dial
@@ -74,8 +74,14 @@ func (s *SSHSession) Connect(ctx context.Context) error {
 		return fmt.Errorf("ssh new session: %w", err)
 	}
 
+	rows, cols := terminalSize()
+	termType := os.Getenv("TERM")
+	if termType == "" {
+		termType = "xterm-256color"
+	}
+
 	// Request PTY (required for network devices)
-	if err := s.session.RequestPty("xterm", 0, 200, ssh.TerminalModes{
+	if err := s.session.RequestPty(termType, rows, cols, ssh.TerminalModes{
 		ssh.ECHO:          1,
 		ssh.TTY_OP_ISPEED: 115200,
 		ssh.TTY_OP_OSPEED: 115200,
@@ -89,15 +95,8 @@ func (s *SSHSession) Connect(ctx context.Context) error {
 		return fmt.Errorf("stdin pipe: %w", err)
 	}
 
-	// Combine stdout and stderr
-	var stdout, stderr bytes.Buffer
-	s.session.Stdout = &stdout
-	s.session.Stderr = &stderr
-	multiReader := io.MultiReader(&stdout, &stderr)
-	_ = multiReader // we'll use a different approach
-
-	// Actually, for interactive shells we need to read from the session's output
-	// in real-time. Let's use a pipe approach.
+	// Interactive shells need a live reader. Avoid assigning Stdout/Stderr directly
+	// because ssh.Session forbids mixing those with StdoutPipe/StderrPipe.
 	s.stdout, err = s.session.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("stdout pipe: %w", err)
@@ -155,6 +154,22 @@ func (s *SSHSession) Connect(ctx context.Context) error {
 	return nil
 }
 
+func sshAuthMethods(creds config.Credentials) []ssh.AuthMethod {
+	if creds.Password == "" {
+		return nil
+	}
+	return []ssh.AuthMethod{
+		ssh.Password(creds.Password),
+		ssh.KeyboardInteractive(func(user, instruction string, questions []string, echos []bool) ([]string, error) {
+			answers := make([]string, len(questions))
+			for i := range questions {
+				answers[i] = creds.Password
+			}
+			return answers, nil
+		}),
+	}
+}
+
 // RunCommand sends cmd, reads until the prompt, and returns the output
 // with command echo and prompt stripped.
 func (s *SSHSession) RunCommand(ctx context.Context, cmd string) ([]byte, error) {
@@ -201,6 +216,24 @@ func (s *SSHSession) Interact(ctx context.Context, in io.Reader, out io.Writer) 
 		return fmt.Errorf("not connected")
 	}
 
+	var (
+		restore    func() error
+		resizeStop func()
+	)
+	if inFile, ok := in.(*os.File); ok && isTerminal(int(inFile.Fd())) {
+		state, err := makeRaw(int(inFile.Fd()))
+		if err != nil {
+			return fmt.Errorf("terminal raw mode: %w", err)
+		}
+		restore = func() error { return restoreTerminal(int(inFile.Fd()), state) }
+		defer restore()
+
+		if outFile, ok := out.(*os.File); ok {
+			resizeStop = s.watchWindowChanges(ctx, inFile, outFile)
+			defer resizeStop()
+		}
+	}
+
 	waitCh := make(chan error, 1)
 	go func() {
 		_, _ = io.Copy(out, s.stdout)
@@ -221,6 +254,93 @@ func (s *SSHSession) Interact(ctx context.Context, in io.Reader, out io.Writer) 
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+func terminalSize() (rows, cols int) {
+	rows, cols = 24, 80
+	if isTerminal(int(os.Stdout.Fd())) {
+		if c, r, err := getSize(int(os.Stdout.Fd())); err == nil && c > 0 && r > 0 {
+			return r, c
+		}
+	}
+	if isTerminal(int(os.Stdin.Fd())) {
+		if c, r, err := getSize(int(os.Stdin.Fd())); err == nil && c > 0 && r > 0 {
+			return r, c
+		}
+	}
+	return rows, cols
+}
+
+func (s *SSHSession) watchWindowChanges(ctx context.Context, inFile, outFile *os.File) func() {
+	resizeCh := make(chan os.Signal, 1)
+	done := make(chan struct{})
+	signal.Notify(resizeCh, syscall.SIGWINCH)
+
+	apply := func() {
+		fd := int(outFile.Fd())
+		if !isTerminal(fd) {
+			fd = int(inFile.Fd())
+		}
+		cols, rows, err := getSize(fd)
+		if err == nil && cols > 0 && rows > 0 {
+			_ = s.session.WindowChange(rows, cols)
+		}
+	}
+	apply()
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-done:
+				return
+			case <-resizeCh:
+				apply()
+			}
+		}
+	}()
+
+	return func() {
+		signal.Stop(resizeCh)
+		close(done)
+	}
+}
+
+func isTerminal(fd int) bool {
+	_, err := unix.IoctlGetTermios(fd, ioctlReadTermios())
+	return err == nil
+}
+
+func makeRaw(fd int) (*unix.Termios, error) {
+	oldState, err := unix.IoctlGetTermios(fd, ioctlReadTermios())
+	if err != nil {
+		return nil, err
+	}
+	newState := *oldState
+	newState.Iflag &^= unix.IGNBRK | unix.BRKINT | unix.PARMRK | unix.ISTRIP | unix.INLCR | unix.IGNCR | unix.ICRNL | unix.IXON
+	newState.Oflag &^= unix.OPOST
+	newState.Lflag &^= unix.ECHO | unix.ECHONL | unix.ICANON | unix.ISIG | unix.IEXTEN
+	newState.Cflag &^= unix.CSIZE | unix.PARENB
+	newState.Cflag |= unix.CS8
+	newState.Cc[unix.VMIN] = 1
+	newState.Cc[unix.VTIME] = 0
+	if err := unix.IoctlSetTermios(fd, ioctlWriteTermios(), &newState); err != nil {
+		return nil, err
+	}
+	return oldState, nil
+}
+
+func restoreTerminal(fd int, state *unix.Termios) error {
+	return unix.IoctlSetTermios(fd, ioctlWriteTermios(), state)
+}
+
+func getSize(fd int) (cols, rows int, err error) {
+	ws, err := unix.IoctlGetWinsize(fd, unix.TIOCGWINSZ)
+	if err != nil {
+		return 0, 0, err
+	}
+	return int(ws.Col), int(ws.Row), nil
 }
 
 // readUntilPrompt reads from the session stdout until the prompt pattern matches.

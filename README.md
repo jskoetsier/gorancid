@@ -33,7 +33,7 @@ CLI binaries match the original flag interface and exit codes, so existing cron 
 
 **Phase 3 complete (v0.3.0)** — all device types in `rancid.types.{base,conf}` now have Go parser coverage, using dedicated parsers for the core families and a generic Go parser for the remaining long tail.
 
-**Phase 4 next** — Expect/legacy login-script transport remains where native SSH collection is not yet appropriate; removing that dependency is now a separate transport-focused phase.
+**Phase 4 in progress (v0.3.1)** — native interactive `clogin` compatibility has been hardened for the supported SSH families, while Expect/legacy login-script transport remains for unsupported device families.
 
 ## Building
 

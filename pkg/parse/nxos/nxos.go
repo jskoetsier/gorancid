@@ -22,7 +22,7 @@ type NXOSParser struct{}
 func (p *NXOSParser) DeviceOpts() connect.DeviceOpts {
 	return connect.DeviceOpts{
 		DeviceType:       "nxos",
-		PromptPattern:    `[\r\n][\w./-]+#\s*$`,
+		PromptPattern:    `(?:^|[\r\n])[\w./:-]+(?:\([^)]+\))*#\s*$`,
 		SetupCommands:    []string{"terminal length 0", "terminal width 0"},
 		EnableCmd:        "",
 		DisablePagingCmd: "terminal length 0",
@@ -104,13 +104,13 @@ func detectCommand(line string) string {
 // ---------------------------------------------------------------------------
 
 var (
-	reNXOSVersion = regexp.MustCompile(`(?:Cisco )?Nexus\s+(\S+)\s+.*Version\s+.*\((\S+)\)`)
-	reNXOSChassis = regexp.MustCompile(`(?:cisco\s+)(Nexus[\d]+)\s+.*[Cc]hassis`)
-	reNXOSSoftware = regexp.MustCompile(`\s+kickstart:\s+version\s+(\S+)`)
-	reNXOSMemory  = regexp.MustCompile(`(\d+)\s+kB`)
+	reNXOSVersion   = regexp.MustCompile(`(?:Cisco )?Nexus\s+(\S+)\s+.*Version\s+.*\((\S+)\)`)
+	reNXOSChassis   = regexp.MustCompile(`(?:cisco\s+)(Nexus[\d]+)\s+.*[Cc]hassis`)
+	reNXOSSoftware  = regexp.MustCompile(`\s+kickstart:\s+version\s+(\S+)`)
+	reNXOSMemory    = regexp.MustCompile(`(\d+)\s+kB`)
 	reNXOSBootImage = regexp.MustCompile(`System image file is:\s+(\S+)`)
-	reNXOSInvalid = regexp.MustCompile(`^(?:Invalid input detected|Type help|% Invalid command|No token match|% Permission denied|command authorization failed)`)
-	reNXOSType     = regexp.MustCompile(`Cisco (Nexus|Storage Area Networking) Operating System`)
+	reNXOSInvalid   = regexp.MustCompile(`^(?:Invalid input detected|Type help|% Invalid command|No token match|% Permission denied|command authorization failed)`)
+	reNXOSType      = regexp.MustCompile(`Cisco (Nexus|Storage Area Networking) Operating System`)
 )
 
 func processShowVersionLine(line string, md map[string]string) string {
@@ -161,35 +161,35 @@ func processShowVersionLine(line string, md map[string]string) string {
 // ---------------------------------------------------------------------------
 
 var (
-	reNXOSCommandHeader = regexp.MustCompile(`^!Command: show running-config`)
-	reNXOSTimeHeader    = regexp.MustCompile(`^!Time:`)
-	reNXOSBuilding      = regexp.MustCompile(`^Building configuration\.\.\.`)
-	reNXOSCurrentConfig = regexp.MustCompile(`^Current configuration`)
-	reNXOSLastConfig    = regexp.MustCompile(`^! Last configuration change`)
+	reNXOSCommandHeader  = regexp.MustCompile(`^!Command: show running-config`)
+	reNXOSTimeHeader     = regexp.MustCompile(`^!Time:`)
+	reNXOSBuilding       = regexp.MustCompile(`^Building configuration\.\.\.`)
+	reNXOSCurrentConfig  = regexp.MustCompile(`^Current configuration`)
+	reNXOSLastConfig     = regexp.MustCompile(`^! Last configuration change`)
 	reNXOSNoConfigChange = regexp.MustCompile(`^! no configuration change since last restart`)
-	reNXOSNtpClock      = regexp.MustCompile(`^\s*ntp clock-period`)
-	reNXOSTftpFlash     = regexp.MustCompile(`^\s*tftp-server flash`)
-	reNXOSFairQueue     = regexp.MustCompile(`^\s+fair-queue individual-limit`)
-	reNXOSClockrate     = regexp.MustCompile(`^\s+clockrate`)
-	reNXOSRCSTag        = regexp.MustCompile(`\$Revision:`)
-	reNXOSIdTag         = regexp.MustCompile(`\$Id:`)
-	reNXOSEnd           = regexp.MustCompile(`^end\b`)
+	reNXOSNtpClock       = regexp.MustCompile(`^\s*ntp clock-period`)
+	reNXOSTftpFlash      = regexp.MustCompile(`^\s*tftp-server flash`)
+	reNXOSFairQueue      = regexp.MustCompile(`^\s+fair-queue individual-limit`)
+	reNXOSClockrate      = regexp.MustCompile(`^\s+clockrate`)
+	reNXOSRCSTag         = regexp.MustCompile(`\$Revision:`)
+	reNXOSIdTag          = regexp.MustCompile(`\$Id:`)
+	reNXOSEnd            = regexp.MustCompile(`^end\b`)
 )
 
 // Password patterns
 var (
-	reNXOSEnablePassword = regexp.MustCompile(`^(\s*enable password)\s+\S+(.*)`)
+	reNXOSEnablePassword   = regexp.MustCompile(`^(\s*enable password)\s+\S+(.*)`)
 	reNXOSUsernamePassword = regexp.MustCompile(`^(\s*username\s+\S+\s+password)\s+\S+(.*)`)
 	reNXOSNeighborPassword = regexp.MustCompile(`^(\s*neighbor\s+\S+\s+password)\s+\S+(.*)`)
-	reNXOSLinePassword   = regexp.MustCompile(`^(\s*password)\s+\S+(.*)`)
-	reNXOSOspfKey        = regexp.MustCompile(`^(\s*ip ospf (?:authentication-key|message-digest-key))\s+\S+(.*)`)
-	reNXOSIsakmpKey      = regexp.MustCompile(`^(\s*crypto isakmp key)\s+\S+(.*)`)
-	reNXOSPreSharedKey   = regexp.MustCompile(`^(\s*pre-shared-key(?:\s+\S+)?)\s+\S+(.*)`)
-	reNXOSKeyString      = regexp.MustCompile(`^(\s*key-string)\s+\S+(.*)`)
+	reNXOSLinePassword     = regexp.MustCompile(`^(\s*password)\s+\S+(.*)`)
+	reNXOSOspfKey          = regexp.MustCompile(`^(\s*ip ospf (?:authentication-key|message-digest-key))\s+\S+(.*)`)
+	reNXOSIsakmpKey        = regexp.MustCompile(`^(\s*crypto isakmp key)\s+\S+(.*)`)
+	reNXOSPreSharedKey     = regexp.MustCompile(`^(\s*pre-shared-key(?:\s+\S+)?)\s+\S+(.*)`)
+	reNXOSKeyString        = regexp.MustCompile(`^(\s*key-string)\s+\S+(.*)`)
 
-	reNXOSEnableSecret    = regexp.MustCompile(`^(\s*enable secret)\s+\S+.*`)
-	reNXOSUsernameSecret   = regexp.MustCompile(`^(\s*username\s+\S+\s+secret)\s+\S+.*`)
-	reNXOSLineSecret       = regexp.MustCompile(`^(\s*secret)\s+\S+.*`)
+	reNXOSEnableSecret   = regexp.MustCompile(`^(\s*enable secret)\s+\S+.*`)
+	reNXOSUsernameSecret = regexp.MustCompile(`^(\s*username\s+\S+\s+secret)\s+\S+.*`)
+	reNXOSLineSecret     = regexp.MustCompile(`^(\s*secret)\s+\S+.*`)
 
 	reNXOSSnmpCommunity = regexp.MustCompile(`^(\s*snmp-server community)\s+\S+(.*)`)
 	reNXOSSnmpHost      = regexp.MustCompile(`^(\s*snmp-server host\s+\S+)\s+\S+(.*)`)

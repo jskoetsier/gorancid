@@ -11,7 +11,7 @@ import (
 	"gorancid/pkg/git"
 )
 
-const version = "0.1.0"
+const version = "0.3.1"
 
 func main() {
 	showVersion := flag.Bool("V", false, "print version")

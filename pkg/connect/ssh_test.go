@@ -1,15 +1,14 @@
-package connect_test
+package connect
 
 import (
 	"context"
 	"testing"
 
 	"gorancid/pkg/config"
-	"gorancid/pkg/connect"
 )
 
 func TestSSHSessionNotConnected(t *testing.T) {
-	s := &connect.SSHSession{}
+	s := &SSHSession{}
 	_, err := s.RunCommand(context.Background(), "show version")
 	if err == nil {
 		t.Error("expected error when not connected")
@@ -17,7 +16,7 @@ func TestSSHSessionNotConnected(t *testing.T) {
 }
 
 func TestSSHSessionClose(t *testing.T) {
-	s := &connect.SSHSession{}
+	s := &SSHSession{}
 	err := s.Close()
 	if err != nil {
 		t.Errorf("Close on unconnected session should not error: %v", err)
@@ -25,7 +24,7 @@ func TestSSHSessionClose(t *testing.T) {
 }
 
 func TestExpectSessionConnect(t *testing.T) {
-	e := &connect.ExpectSession{}
+	e := &ExpectSession{}
 	err := e.Connect(context.Background())
 	if err != nil {
 		t.Errorf("ExpectSession.Connect should be no-op: %v", err)
@@ -33,7 +32,7 @@ func TestExpectSessionConnect(t *testing.T) {
 }
 
 func TestExpectSessionClose(t *testing.T) {
-	e := &connect.ExpectSession{}
+	e := &ExpectSession{}
 	err := e.Close()
 	if err != nil {
 		t.Errorf("ExpectSession.Close should be no-op: %v", err)
@@ -41,15 +40,31 @@ func TestExpectSessionClose(t *testing.T) {
 }
 
 func TestNewSessionExpect(t *testing.T) {
-	s := connect.NewSession("sw-01", 22, config.Credentials{}, connect.DeviceOpts{}, "clogin", false)
-	if _, ok := s.(*connect.ExpectSession); !ok {
+	s := NewSession("sw-01", 22, config.Credentials{}, DeviceOpts{}, "clogin", false)
+	if _, ok := s.(*ExpectSession); !ok {
 		t.Error("expected ExpectSession when goParserAvailable=false")
 	}
 }
 
 func TestNewSessionSSH(t *testing.T) {
-	s := connect.NewSession("sw-01", 22, config.Credentials{}, connect.DeviceOpts{}, "clogin", true)
-	if _, ok := s.(*connect.SSHSession); !ok {
+	s := NewSession("sw-01", 22, config.Credentials{}, DeviceOpts{}, "clogin", true)
+	if _, ok := s.(*SSHSession); !ok {
 		t.Error("expected SSHSession when goParserAvailable=true")
+	}
+}
+
+func TestNewSessionExpectWhenOnlyTelnetMethod(t *testing.T) {
+	s := NewSession("sw-01", 22, config.Credentials{Methods: []string{"telnet"}}, DeviceOpts{}, "clogin", true)
+	if _, ok := s.(*ExpectSession); !ok {
+		t.Error("expected ExpectSession when SSH is unavailable")
+	}
+}
+
+func TestSSHAuthMethods(t *testing.T) {
+	if methods := sshAuthMethods(config.Credentials{}); len(methods) != 0 {
+		t.Fatalf("expected no auth methods without password, got %d", len(methods))
+	}
+	if methods := sshAuthMethods(config.Credentials{Password: "secret"}); len(methods) != 2 {
+		t.Fatalf("expected password and keyboard-interactive methods, got %d", len(methods))
 	}
 }

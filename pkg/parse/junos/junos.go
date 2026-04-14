@@ -27,7 +27,7 @@ func init() {
 func (p *JunOSParser) DeviceOpts() connect.DeviceOpts {
 	return connect.DeviceOpts{
 		DeviceType:       "junos",
-		PromptPattern:    `[\r\n][\w.-]+@[^\r\n]+>\s*$`,
+		PromptPattern:    `(?:^|[\r\n])[\w.-]+@[^\r\n]+>\s*$`,
 		SetupCommands:    []string{"set cli screen-length 0", "set cli screen-width 0"},
 		EnableCmd:        "",
 		DisablePagingCmd: "set cli screen-length 0",
@@ -109,7 +109,7 @@ func (p *JunOSParser) Parse(output []byte, filter parse.FilterOpts) (parse.Parse
 type section int
 
 const (
-	sectionNone    section = iota
+	sectionNone section = iota
 	sectionVersion
 	sectionChassis
 	sectionConfig
@@ -118,7 +118,7 @@ const (
 var (
 	reShowVersion = regexp.MustCompile(`(?i)^show\s+version(\s+detail)?\s*$`)
 	reShowChassis = regexp.MustCompile(`(?i)^show\s+chassis\s+hardware(\s+detail)?\s*$`)
-	reShowConfig   = regexp.MustCompile(`(?i)^show\s+configuration(\s*\|\s*no-more)?\s*$`)
+	reShowConfig  = regexp.MustCompile(`(?i)^show\s+configuration(\s*\|\s*no-more)?\s*$`)
 )
 
 func isShowVersionHeader(line string) bool {
@@ -228,18 +228,18 @@ var reSecretDataInline = regexp.MustCompile(`\s*#\s*SECRET-DATA\b`)
 
 var (
 	// Level 1: clear-text secrets
-	reAuthKey            = regexp.MustCompile(`^(.*authentication-key\s+)\S+(.*)`)
-	reMD5Key             = regexp.MustCompile(`^(.*md5\s+)\S+(\s+key\s+)\S+(.*)`)
-	reMD5KeySimple       = regexp.MustCompile(`^(.*md5\s+)\S+(.*)`)
-	reHelloAuthKey       = regexp.MustCompile(`^(.*hello-authentication-key\s+)\S+(.*)`)
-	rePreSharedKey       = regexp.MustCompile(`^(.*pre-shared-key\s+)(ascii-text|hexadecimal)\s+\S+(.*)`)
-	reKeyAsciiHex        = regexp.MustCompile(`^(.*key\s+)(ascii-text|hexadecimal)\s+\S+(.*)`)
-	reSecretSimplePwd    = regexp.MustCompile(`^(.*(?:secret|simple-password))\s+\S+(.*)`)
+	reAuthKey         = regexp.MustCompile(`^(.*authentication-key\s+)\S+(.*)`)
+	reMD5Key          = regexp.MustCompile(`^(.*md5\s+)\S+(\s+key\s+)\S+(.*)`)
+	reMD5KeySimple    = regexp.MustCompile(`^(.*md5\s+)\S+(.*)`)
+	reHelloAuthKey    = regexp.MustCompile(`^(.*hello-authentication-key\s+)\S+(.*)`)
+	rePreSharedKey    = regexp.MustCompile(`^(.*pre-shared-key\s+)(ascii-text|hexadecimal)\s+\S+(.*)`)
+	reKeyAsciiHex     = regexp.MustCompile(`^(.*key\s+)(ascii-text|hexadecimal)\s+\S+(.*)`)
+	reSecretSimplePwd = regexp.MustCompile(`^(.*(?:secret|simple-password))\s+\S+(.*)`)
 
 	// Level 2: encrypted secrets
-	reEncryptedPassword  = regexp.MustCompile(`^(.*encrypted-password)\s+\S+(.*)`)
-	reSSHRSAKey          = regexp.MustCompile(`^(ssh-rsa\s+"[^"]*"\s+).*$`)
-	reSSHDSAKey          = regexp.MustCompile(`^(ssh-dsa\s+"[^"]*"\s+).*$`)
+	reEncryptedPassword = regexp.MustCompile(`^(.*encrypted-password)\s+\S+(.*)`)
+	reSSHRSAKey         = regexp.MustCompile(`^(ssh-rsa\s+"[^"]*"\s+).*$`)
+	reSSHDSAKey         = regexp.MustCompile(`^(ssh-dsa\s+"[^"]*"\s+).*$`)
 )
 
 // ---------------------------------------------------------------------------
@@ -247,8 +247,8 @@ var (
 // ---------------------------------------------------------------------------
 
 var (
-	reCommunityName  = regexp.MustCompile(`^(.*community\s+)\S+(.*)`)
-	reTrapGroupName  = regexp.MustCompile(`^(.*trap-group\s+\S+.*targets\s+)\S+(.*)`)
+	reCommunityName = regexp.MustCompile(`^(.*community\s+)\S+(.*)`)
+	reTrapGroupName = regexp.MustCompile(`^(.*trap-group\s+\S+.*targets\s+)\S+(.*)`)
 )
 
 // ---------------------------------------------------------------------------

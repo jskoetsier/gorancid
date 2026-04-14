@@ -40,3 +40,36 @@ func TestLoadCloginrc(t *testing.T) {
 		t.Errorf("old-router methods = %v, want [telnet]", creds3.Methods)
 	}
 }
+
+func TestLoadCloginrcMultiValuePassword(t *testing.T) {
+	cs, err := config.LoadCloginrc("testdata/cloginrc_multivalue")
+	if err != nil {
+		t.Fatalf("LoadCloginrc: %v", err)
+	}
+
+	creds := cs.Lookup("ix5-rtr-p01-re0")
+	if creds.Username != "rancid" {
+		t.Fatalf("username = %q, want rancid", creds.Username)
+	}
+	if creds.Password != "loginpass" {
+		t.Fatalf("password = %q, want loginpass", creds.Password)
+	}
+	if creds.EnablePwd != "enablepass" {
+		t.Fatalf("enable password = %q, want enablepass", creds.EnablePwd)
+	}
+	if len(creds.Methods) != 1 || creds.Methods[0] != "ssh" {
+		t.Fatalf("methods = %v, want [ssh]", creds.Methods)
+	}
+}
+
+func TestLoadCloginrcUserPasswordOverridesPassword(t *testing.T) {
+	cs, err := config.LoadCloginrc("testdata/cloginrc_userpassword")
+	if err != nil {
+		t.Fatalf("LoadCloginrc: %v", err)
+	}
+
+	creds := cs.Lookup("ix5-rtr-p01-re1")
+	if creds.Password != "userpass" {
+		t.Fatalf("password = %q, want userpass", creds.Password)
+	}
+}

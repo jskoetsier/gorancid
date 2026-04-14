@@ -16,7 +16,7 @@ import (
 	"gorancid/pkg/par"
 )
 
-const version = "0.1.0"
+const version = "0.3.1"
 
 func main() {
 	var (
