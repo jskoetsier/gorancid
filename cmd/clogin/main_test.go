@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -54,5 +55,24 @@ func TestDeviceOptsEnableForCisco(t *testing.T) {
 	opts := deviceOpts("cisco", config.Credentials{EnablePwd: "secret"}, 15, false, false)
 	if opts.EnableCmd != "enable" {
 		t.Fatalf("EnableCmd = %q, want enable", opts.EnableCmd)
+	}
+}
+
+func TestResolveConfigPath(t *testing.T) {
+	t.Setenv("RANCID_CONF", "/env/rancid.conf")
+
+	if got := resolveConfigPath("/flag/rancid.conf", ""); got != "/flag/rancid.conf" {
+		t.Fatalf("primary flag path = %q", got)
+	}
+	if got := resolveConfigPath("", "/alt/rancid.conf"); got != "/alt/rancid.conf" {
+		t.Fatalf("secondary flag path = %q", got)
+	}
+	if got := resolveConfigPath("", ""); got != "/env/rancid.conf" {
+		t.Fatalf("env path = %q", got)
+	}
+
+	_ = os.Unsetenv("RANCID_CONF")
+	if got := resolveConfigPath("", ""); got != "/usr/local/rancid/etc/rancid.conf" {
+		t.Fatalf("default path = %q", got)
 	}
 }

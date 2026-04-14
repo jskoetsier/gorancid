@@ -33,6 +33,8 @@ func main() {
 		autoEnable  = flag.Bool("autoenable", false, "assume device is already enabled")
 		noEnable    = flag.Bool("noenable", false, "do not enter enable mode")
 		commandStr  = flag.String("c", "", "commands to run, separated by semicolons")
+		confFile    = flag.String("C", "", "rancid.conf file path")
+		confFileAlt = flag.String("config", "", "rancid.conf file path")
 		cloginrc    = flag.String("f", "", "cloginrc file path")
 		enablePwd   = flag.String("e", "", "enable password override")
 		password    = flag.String("p", "", "user password override")
@@ -53,10 +55,7 @@ func main() {
 	}
 
 	hostname := flag.Arg(0)
-	confPath := os.Getenv("RANCID_CONF")
-	if confPath == "" {
-		confPath = "/usr/local/rancid/etc/rancid.conf"
-	}
+	confPath := resolveConfigPath(*confFile, *confFileAlt)
 	cloginPath := *cloginrc
 	if cloginPath == "" {
 		cloginPath = filepath.Join(os.Getenv("HOME"), ".cloginrc")
@@ -125,8 +124,21 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: clogin [-Vh] [-autoenable] [-noenable] [-i] [-c command] [-e enable-password] [-f cloginrc-file] [-p user-password] [-t timeout] [-u username] [-z device_type] [-routerdb path] hostname")
+	fmt.Fprintln(os.Stderr, "usage: clogin [-Vh] [-autoenable] [-noenable] [-i] [-C rancid.conf] [-config rancid.conf] [-c command] [-e enable-password] [-f cloginrc-file] [-p user-password] [-t timeout] [-u username] [-z device_type] [-routerdb path] hostname")
 	os.Exit(1)
+}
+
+func resolveConfigPath(primary, secondary string) string {
+	if primary != "" {
+		return primary
+	}
+	if secondary != "" {
+		return secondary
+	}
+	if confPath := os.Getenv("RANCID_CONF"); confPath != "" {
+		return confPath
+	}
+	return "/usr/local/rancid/etc/rancid.conf"
 }
 
 func findDevice(hostname string, cfg config.Config, routerDBPath string) (config.Device, string, error) {
