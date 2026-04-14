@@ -2,12 +2,11 @@ stages:
   - test
   - build
 
-variables:
-  CGO_ENABLED: "0"
-
 test:
   stage: test
   image: golang:1.22-bookworm
+  variables:
+    CGO_ENABLED: "1"
   script:
     - go test ./... -v -race
   rules:
@@ -16,6 +15,8 @@ test:
 build:
   stage: build
   image: golang:1.22-bookworm
+  variables:
+    CGO_ENABLED: "0"
   script:
     - mkdir -p bin
     - GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/rancid-cvs-linux-amd64 ./cmd/rancid-cvs/
