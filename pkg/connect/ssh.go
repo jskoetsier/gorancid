@@ -16,7 +16,8 @@ import (
 )
 
 // defaultPrompt matches most Cisco/Juniper/Fortinet prompts:
-//   Router#   Router>   user@host>   FW-01 #
+//
+//	Router#   Router>   user@host>   FW-01 #
 var defaultPrompt = regexp.MustCompile(`[\r\n][\w./-]+[>#]\s*$`)
 
 // SSHSession implements Session using golang.org/x/crypto/ssh.
@@ -27,11 +28,11 @@ type SSHSession struct {
 	Creds config.Credentials
 	Opts  DeviceOpts
 
-	client  *ssh.Client
-	session *ssh.Session
-	stdin   io.WriteCloser
-	stdout  io.Reader
-	prompt  *regexp.Regexp // detected prompt pattern
+	client    *ssh.Client
+	session   *ssh.Session
+	stdin     io.WriteCloser
+	stdout    io.Reader
+	prompt    *regexp.Regexp // detected prompt pattern
 	connected bool
 }
 
@@ -45,10 +46,10 @@ func (s *SSHSession) Connect(ctx context.Context) error {
 
 	// Build SSH config
 	sshConfig := &ssh.ClientConfig{
-		User: s.Creds.Username,
-		Auth: []ssh.AuthMethod{},
+		User:            s.Creds.Username,
+		Auth:            []ssh.AuthMethod{},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // RANCID doesn't check host keys
-		Timeout: 15 * time.Second,
+		Timeout:         15 * time.Second,
 	}
 	if s.Creds.Password != "" {
 		sshConfig.Auth = append(sshConfig.Auth, ssh.Password(s.Creds.Password))
@@ -125,6 +126,9 @@ func (s *SSHSession) Connect(ctx context.Context) error {
 		return fmt.Errorf("waiting for initial prompt: %w", err)
 	}
 
+	// Mark the session as connected before issuing enable/setup commands.
+	s.connected = true
+
 	// Enter enable mode if configured
 	if s.Opts.EnableCmd != "" {
 		if _, err := s.RunCommand(ctx, s.Opts.EnableCmd); err != nil {
@@ -148,8 +152,6 @@ func (s *SSHSession) Connect(ctx context.Context) error {
 			continue
 		}
 	}
-
-	s.connected = true
 	return nil
 }
 
@@ -191,6 +193,34 @@ func (s *SSHSession) Close() error {
 	}
 	s.connected = false
 	return nil
+}
+
+// Interact attaches an already-connected interactive shell to the provided streams.
+func (s *SSHSession) Interact(ctx context.Context, in io.Reader, out io.Writer) error {
+	if !s.connected {
+		return fmt.Errorf("not connected")
+	}
+
+	waitCh := make(chan error, 1)
+	go func() {
+		_, _ = io.Copy(out, s.stdout)
+		waitCh <- s.session.Wait()
+	}()
+
+	go func() {
+		_, _ = io.Copy(s.stdin, in)
+		_ = s.stdin.Close()
+	}()
+
+	select {
+	case err := <-waitCh:
+		if err == io.EOF {
+			return nil
+		}
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // readUntilPrompt reads from the session stdout until the prompt pattern matches.

@@ -23,6 +23,7 @@ CLI binaries match the original flag interface and exit codes, so existing cron 
 
 | Binary | Replaces | Purpose |
 |--------|----------|---------|
+| `clogin` | `clogin` / `plogin` | Interactive device login using `.cloginrc`, with device-type lookup from `router.db` |
 | `rancid-cvs` | `rancid-cvs` | Initialize git repos and group directory structure |
 | `control-rancid` | `control_rancid` | Per-group collection orchestrator |
 | `rancid-run` | `rancid-run` | Cron entry point — iterates groups, calls control-rancid |
@@ -45,6 +46,7 @@ Individual binaries:
 go build -o rancid-cvs ./cmd/rancid-cvs/
 go build -o control-rancid ./cmd/control-rancid/
 go build -o rancid-run ./cmd/rancid-run/
+go build -o clogin ./cmd/clogin/
 ```
 
 Cross-compile for Linux:

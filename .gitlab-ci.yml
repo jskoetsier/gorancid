@@ -22,9 +22,11 @@ build:
     CGO_ENABLED: "0"
   script:
     - mkdir -p bin
+    - GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/clogin-linux-amd64 ./cmd/clogin/
     - GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/rancid-cvs-linux-amd64 ./cmd/rancid-cvs/
     - GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/control-rancid-linux-amd64 ./cmd/control-rancid/
     - GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/rancid-run-linux-amd64 ./cmd/rancid-run/
+    - GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o bin/clogin-linux-arm64 ./cmd/clogin/
     - GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o bin/rancid-cvs-linux-arm64 ./cmd/rancid-cvs/
     - GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o bin/control-rancid-linux-arm64 ./cmd/control-rancid/
     - GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o bin/rancid-run-linux-arm64 ./cmd/rancid-run/

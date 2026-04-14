@@ -45,6 +45,9 @@ All device types have Go-native collectors. Remove Expect/Tcl dependency entirel
 - [ ] Remove `FallbackCollector` and Expect subprocess path
 - [ ] Remove Perl `rancid` binary dependency
 - [ ] Standalone Go binary — no external runtime dependencies
+- [ ] Web UI: config browser with syntax highlighting
+- [ ] Web UI: diff viewer per device per run
+- [ ] Web UI: device fleet status overview
 
 ## Phase 5: REST API
 
@@ -80,11 +83,3 @@ Populate `ParsedConfig.Metadata` fully and write JSON alongside plain-text confi
 - [ ] Prometheus metrics: collection duration, success/failure counts, last-seen timestamps
 - [ ] Structured JSON logging (replace flat log files under LOGDIR)
 - [ ] `cmd/rancid-status` — terminal dashboard for group collection health
-
-## Phase 9: Web UI
-
-Single-page app backed by the Phase 5 API.
-
-- [ ] Config browser with syntax highlighting
-- [ ] Diff viewer per device per run
-- [ ] Device fleet status overview
