@@ -2,9 +2,12 @@ stages:
   - test
   - build
 
+variables:
+  GO_IMAGE: golang:1.25-bookworm
+
 test:
   stage: test
-  image: golang:1.22-bookworm
+  image: $GO_IMAGE
   variables:
     CGO_ENABLED: "1"
   script:
@@ -14,7 +17,7 @@ test:
 
 build:
   stage: build
-  image: golang:1.22-bookworm
+  image: $GO_IMAGE
   variables:
     CGO_ENABLED: "0"
   script:
