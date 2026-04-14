@@ -42,35 +42,65 @@ type Session interface {
 	Close() error
 }
 
-// NewSession returns the appropriate Session implementation:
-//   - If native transport is preferred and SSH is available, returns an SSHSession.
-//   - Otherwise, returns an ExpectSession (shells out to clogin/jlogin/etc.).
-func NewSession(host string, port int, creds config.Credentials, opts DeviceOpts, loginScript string, preferNative bool) Session {
-	if preferNative {
-		if sshPort, ok := sshPortForMethods(creds.Methods, port); ok {
-			port = sshPort
-		} else {
-			preferNative = false
-		}
+// NewSession returns an SSHSession or TelnetSession based on the first matching
+// method in creds.Methods (in order). Empty methods defaults to SSH on port 22.
+func NewSession(host string, defaultSSHPort int, creds config.Credentials, opts DeviceOpts, _ string, preferNative bool) (Session, error) {
+	if !preferNative {
+		return nil, ErrNoNativeTransport
 	}
-	if preferNative {
+	kind, port, ok := selectNativeTransport(creds.Methods, defaultSSHPort)
+	if !ok {
+		return nil, ErrNoNativeTransport
+	}
+	switch kind {
+	case "ssh":
 		return &SSHSession{
 			Host:  host,
 			Port:  port,
 			Creds: creds,
 			Opts:  opts,
-		}
-	}
-	return &ExpectSession{
-		Host:        host,
-		LoginScript: loginScript,
-		DeviceType:  opts.DeviceType,
-		Creds:       creds,
-		Timeout:     int(opts.Timeout / time.Second),
+		}, nil
+	case "telnet":
+		return &TelnetSession{
+			Host:  host,
+			Port:  port,
+			Creds: creds,
+			Opts:  opts,
+		}, nil
+	default:
+		return nil, ErrNoNativeTransport
 	}
 }
 
-// readUntilPrompt reads from r until the prompt pattern is matched or ctx expires.
+func selectNativeTransport(methods []string, defaultSSHPort int) (kind string, port int, ok bool) {
+	if defaultSSHPort <= 0 {
+		defaultSSHPort = 22
+	}
+	if len(methods) == 0 {
+		return "ssh", defaultSSHPort, true
+	}
+	for _, method := range methods {
+		switch {
+		case method == "ssh":
+			return "ssh", defaultSSHPort, true
+		case strings.HasPrefix(method, "ssh:"):
+			p, err := strconv.Atoi(strings.TrimPrefix(method, "ssh:"))
+			if err == nil && p > 0 {
+				return "ssh", p, true
+			}
+		case method == "telnet":
+			return "telnet", 23, true
+		case strings.HasPrefix(method, "telnet:"):
+			p, err := strconv.Atoi(strings.TrimPrefix(method, "telnet:"))
+			if err == nil && p > 0 {
+				return "telnet", p, true
+			}
+		}
+	}
+	return "", 0, false
+}
+
+// readUntil reads from r until the prompt pattern is matched or ctx expires.
 // Returns the full output read (including prompt) and any error.
 func readUntil(ctx context.Context, r io.Reader, buf []byte, match func([]byte) int, timeout time.Duration) ([]byte, error) {
 	if timeout == 0 {
@@ -100,25 +130,4 @@ func readUntil(ctx context.Context, r io.Reader, buf []byte, match func([]byte) 
 			return accumulated, err
 		}
 	}
-}
-
-func sshPortForMethods(methods []string, defaultPort int) (int, bool) {
-	if defaultPort <= 0 {
-		defaultPort = 22
-	}
-	if len(methods) == 0 {
-		return defaultPort, true
-	}
-	for _, method := range methods {
-		switch {
-		case method == "ssh":
-			return defaultPort, true
-		case strings.HasPrefix(method, "ssh:"):
-			port, err := strconv.Atoi(strings.TrimPrefix(method, "ssh:"))
-			if err == nil && port > 0 {
-				return port, true
-			}
-		}
-	}
-	return 0, false
 }

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>{{.Title}} — rancid-ui</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; color: #111; }
+    table { border-collapse: collapse; width: 100%; max-width: 1200px; }
+    th, td { border: 1px solid #ccc; padding: 0.4rem 0.6rem; text-align: left; }
+    th { background: #f4f4f4; }
+    a { color: #0645ad; }
+    .up { color: #0a0; }
+    .down { color: #a00; }
+  </style>
+</head>
+<body>
+  <h1>{{.Title}}</h1>
+  <p>Read-only view of <code>router.db</code> inventory across configured groups.</p>
+  {{if eq (len .Rows) 0}}
+  <p><em>No devices found (check LIST_OF_GROUPS / router.db paths).</em></p>
+  {{else}}
+  <table>
+    <thead><tr><th>Group</th><th>Hostname</th><th>Type</th><th>Status</th><th>Views</th></tr></thead>
+    <tbody>
+      {{range .Rows}}
+      <tr>
+        <td><a href="/group/{{.Group}}">{{.Group}}</a></td>
+        <td>{{.Host}}</td>
+        <td>{{.DevType}}</td>
+        <td class="{{.Status}}">{{.Status}}</td>
+        <td>
+          <a href="/group/{{.Group}}/device/{{.Host}}/config">config</a>
+          · <a href="/group/{{.Group}}/device/{{.Host}}/diff">last diff</a>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{end}}
+</body>
+</html>

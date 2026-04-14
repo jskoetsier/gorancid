@@ -410,9 +410,13 @@ func (s *SSHSession) stripEchoAndPrompt(output []byte, cmd string) []byte {
 	return []byte(strings.Join(lines[start:end], "\n"))
 }
 
-// cleanANSI strips ANSI escape sequences from the output.
-func (s *SSHSession) cleanANSI(data []byte) []byte {
-	// Simple ANSI escape sequence filter
+// cleanANSIBytes strips ANSI escape sequences from device output.
+func cleanANSIBytes(data []byte) []byte {
 	re := regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
 	return re.ReplaceAll(data, nil)
+}
+
+// cleanANSI strips ANSI escape sequences from the output.
+func (s *SSHSession) cleanANSI(data []byte) []byte {
+	return cleanANSIBytes(data)
 }

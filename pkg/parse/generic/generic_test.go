@@ -1,6 +1,7 @@
 package generic
 
 import (
+	"strings"
 	"testing"
 
 	"gorancid/pkg/parse"
@@ -18,5 +19,16 @@ func TestParseFiltersTerminalNoise(t *testing.T) {
 	}
 	if cfg.Metadata["parser"] != "generic" {
 		t.Fatalf("parser metadata = %q, want generic", cfg.Metadata["parser"])
+	}
+}
+
+func TestDeviceOptsPromptPattern(t *testing.T) {
+	p := New("riverstone")
+	opts := p.DeviceOpts()
+	if opts.DeviceType != "riverstone" {
+		t.Fatalf("DeviceType = %q", opts.DeviceType)
+	}
+	if opts.PromptPattern == "" || !strings.Contains(opts.PromptPattern, "#") {
+		t.Fatalf("expected non-empty prompt pattern with shell markers, got %q", opts.PromptPattern)
 	}
 }

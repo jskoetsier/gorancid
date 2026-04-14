@@ -18,13 +18,17 @@ func TestSplitCommands(t *testing.T) {
 	}
 }
 
-func TestFirstSSHMethod(t *testing.T) {
-	port, ok := firstSSHMethod([]string{"telnet", "ssh:2222"})
+func TestFirstNativeTransportOrder(t *testing.T) {
+	kind, port, ok := firstNativeTransport([]string{"telnet", "ssh:2222"})
 	if !ok {
-		t.Fatal("expected ssh method to be found")
+		t.Fatal("expected transport")
 	}
-	if port != 2222 {
-		t.Fatalf("port = %d, want 2222", port)
+	if kind != "telnet" || port != 23 {
+		t.Fatalf("got %s:%d, want telnet:23 (first method wins)", kind, port)
+	}
+	kind, port, ok = firstNativeTransport([]string{"ssh:2222", "telnet"})
+	if !ok || kind != "ssh" || port != 2222 {
+		t.Fatalf("got %s:%d, want ssh:2222", kind, port)
 	}
 }
 
@@ -35,8 +39,8 @@ func TestCanUseNative(t *testing.T) {
 	if canUseNative("unknown", []string{"ssh"}) {
 		t.Fatal("unexpected native support for unknown type")
 	}
-	if canUseNative("ios", []string{"telnet"}) {
-		t.Fatal("unexpected native support for telnet-only method")
+	if !canUseNative("ios", []string{"telnet"}) {
+		t.Fatal("expected native telnet support for ios when parser exposes DeviceOpts")
 	}
 }
 
@@ -100,7 +104,7 @@ func TestEnsureParserCoverage(t *testing.T) {
 		"fortiscp":       {Type: "fortiscp"},
 	}
 
-	ensureParserCoverage(specs)
+	devicetype.RegisterMissingParsers(specs)
 
 	if !canUseNative("fortigate-full", []string{"ssh"}) {
 		t.Fatal("expected fortigate-full to use native parser coverage")

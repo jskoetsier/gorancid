@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>{{.Title}} — rancid-ui</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; color: #111; }
+    table { border-collapse: collapse; width: 100%; max-width: 900px; }
+    th, td { border: 1px solid #ccc; padding: 0.4rem 0.6rem; text-align: left; }
+    th { background: #f4f4f4; }
+    a { color: #0645ad; }
+  </style>
+</head>
+<body>
+  <p><a href="/">← Fleet</a></p>
+  <h1>Group {{.Group}}</h1>
+  <table>
+    <thead><tr><th>Hostname</th><th>Type</th><th>Status</th><th>Views</th></tr></thead>
+    <tbody>
+      {{range .Devs}}
+      <tr>
+        <td>{{.Hostname}}</td>
+        <td>{{.Type}}</td>
+        <td>{{.Status}}</td>
+        <td>
+          <a href="/group/{{$.Group}}/device/{{.Hostname}}/config">config</a>
+          · <a href="/group/{{$.Group}}/device/{{.Hostname}}/diff">last diff</a>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</body>
+</html>

@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -24,7 +25,7 @@ import (
 	_ "gorancid/pkg/parse/nxos"
 )
 
-const version = "0.3.1"
+const version = "0.3.3"
 
 func main() {
 	var (
@@ -77,7 +78,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("devicetype: %v", err)
 	}
-	ensureParserCoverage(specs)
+	devicetype.RegisterMissingParsers(specs)
 
 	resolvedType := *deviceType
 	if resolvedType == "" {
@@ -110,7 +111,8 @@ func main() {
 	timeout := time.Duration(*timeoutSec) * time.Second
 	commands := splitCommands(*commandStr)
 	if canUseNative(spec.Type, creds.Methods) {
-		fmt.Fprintf(os.Stderr, "using native ssh: type=%s host=%s\n", spec.Type, hostname)
+		kind, port, _ := firstNativeTransport(creds.Methods)
+		fmt.Fprintf(os.Stderr, "using native %s (port %d): type=%s host=%s\n", kind, port, spec.Type, hostname)
 		if err := runNative(context.Background(), hostname, spec.Type, creds, commands, timeout, *noEnable, *autoEnable, *interactive || len(commands) == 0); err != nil {
 			log.Fatalf("clogin: %v", err)
 		}
@@ -217,40 +219,42 @@ func canUseNative(deviceType string, methods []string) bool {
 	if _, ok := parser.(interface{ DeviceOpts() connect.DeviceOpts }); !ok {
 		return false
 	}
-	_, ok = firstSSHMethod(methods)
+	_, _, ok = firstNativeTransport(methods)
 	return ok
 }
 
-func firstSSHMethod(methods []string) (int, bool) {
+// firstNativeTransport returns the first supported transport from .cloginrc
+// method list ("ssh", "ssh:port", "telnet", "telnet:port") in declaration order.
+func firstNativeTransport(methods []string) (kind string, port int, ok bool) {
 	if len(methods) == 0 {
-		return 22, true
+		return "ssh", 22, true
 	}
 	for _, method := range methods {
-		if method == "ssh" {
-			return 22, true
-		}
-		if strings.HasPrefix(method, "ssh:") {
-			port, err := strconv.Atoi(strings.TrimPrefix(method, "ssh:"))
-			if err == nil && port > 0 {
-				return port, true
+		switch {
+		case method == "ssh":
+			return "ssh", 22, true
+		case strings.HasPrefix(method, "ssh:"):
+			p, err := strconv.Atoi(strings.TrimPrefix(method, "ssh:"))
+			if err == nil && p > 0 {
+				return "ssh", p, true
+			}
+		case method == "telnet":
+			return "telnet", 23, true
+		case strings.HasPrefix(method, "telnet:"):
+			p, err := strconv.Atoi(strings.TrimPrefix(method, "telnet:"))
+			if err == nil && p > 0 {
+				return "telnet", p, true
 			}
 		}
 	}
-	return 0, false
+	return "", 0, false
 }
 
 func runNative(ctx context.Context, hostname, deviceType string, creds config.Credentials, commands []string, timeout time.Duration, noEnable, autoEnable, interactive bool) error {
-	port, ok := firstSSHMethod(creds.Methods)
-	if !ok {
-		return fmt.Errorf("native mode requires an ssh method in .cloginrc")
-	}
-
 	opts := deviceOpts(deviceType, creds, timeout, noEnable, autoEnable)
-	session := &connect.SSHSession{
-		Host:  hostname,
-		Port:  port,
-		Creds: creds,
-		Opts:  opts,
+	session, err := connect.NewSession(hostname, 22, creds, opts, "", true)
+	if err != nil {
+		return err
 	}
 	if err := session.Connect(ctx); err != nil {
 		return err
@@ -273,7 +277,12 @@ func runNative(ctx context.Context, hostname, deviceType string, creds config.Cr
 	}
 
 	if interactive {
-		return session.Interact(ctx, os.Stdin, os.Stdout)
+		if it, ok := session.(interface {
+			Interact(ctx context.Context, in io.Reader, out io.Writer) error
+		}); ok {
+			return it.Interact(ctx, os.Stdin, os.Stdout)
+		}
+		return fmt.Errorf("interactive mode is not supported for this transport")
 	}
 	return nil
 }

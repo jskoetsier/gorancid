@@ -2,6 +2,7 @@ package connect
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"gorancid/pkg/config"
@@ -23,40 +24,47 @@ func TestSSHSessionClose(t *testing.T) {
 	}
 }
 
-func TestExpectSessionConnect(t *testing.T) {
-	e := &ExpectSession{}
-	err := e.Connect(context.Background())
-	if err != nil {
-		t.Errorf("ExpectSession.Connect should be no-op: %v", err)
-	}
-}
-
-func TestExpectSessionClose(t *testing.T) {
-	e := &ExpectSession{}
-	err := e.Close()
-	if err != nil {
-		t.Errorf("ExpectSession.Close should be no-op: %v", err)
-	}
-}
-
-func TestNewSessionExpect(t *testing.T) {
-	s := NewSession("sw-01", 22, config.Credentials{}, DeviceOpts{}, "clogin", false)
-	if _, ok := s.(*ExpectSession); !ok {
-		t.Error("expected ExpectSession when goParserAvailable=false")
+func TestNewSessionRequiresNative(t *testing.T) {
+	_, err := NewSession("sw-01", 22, config.Credentials{}, DeviceOpts{}, "clogin", false)
+	if !errors.Is(err, ErrNoNativeTransport) {
+		t.Fatalf("expected ErrNoNativeTransport when preferNative=false, got %v", err)
 	}
 }
 
 func TestNewSessionSSH(t *testing.T) {
-	s := NewSession("sw-01", 22, config.Credentials{}, DeviceOpts{}, "clogin", true)
+	s, err := NewSession("sw-01", 22, config.Credentials{}, DeviceOpts{}, "clogin", true)
+	if err != nil {
+		t.Fatalf("NewSession: %v", err)
+	}
 	if _, ok := s.(*SSHSession); !ok {
-		t.Error("expected SSHSession when goParserAvailable=true")
+		t.Fatalf("expected *SSHSession, got %T", s)
 	}
 }
 
-func TestNewSessionExpectWhenOnlyTelnetMethod(t *testing.T) {
-	s := NewSession("sw-01", 22, config.Credentials{Methods: []string{"telnet"}}, DeviceOpts{}, "clogin", true)
-	if _, ok := s.(*ExpectSession); !ok {
-		t.Error("expected ExpectSession when SSH is unavailable")
+func TestNewSessionTelnet(t *testing.T) {
+	s, err := NewSession("sw-01", 22, config.Credentials{Methods: []string{"telnet"}}, DeviceOpts{}, "clogin", true)
+	if err != nil {
+		t.Fatalf("NewSession: %v", err)
+	}
+	if _, ok := s.(*TelnetSession); !ok {
+		t.Fatalf("expected *TelnetSession, got %T", s)
+	}
+}
+
+func TestNewSessionPrefersFirstMethod(t *testing.T) {
+	s, err := NewSession("sw-01", 22, config.Credentials{Methods: []string{"telnet", "ssh"}}, DeviceOpts{}, "clogin", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := s.(*TelnetSession); !ok {
+		t.Fatalf("expected telnet first, got %T", s)
+	}
+}
+
+func TestNewSessionErrorWhenNoTransportMethod(t *testing.T) {
+	_, err := NewSession("sw-01", 22, config.Credentials{Methods: []string{"rsh"}}, DeviceOpts{}, "clogin", true)
+	if !errors.Is(err, ErrNoNativeTransport) {
+		t.Fatalf("expected ErrNoNativeTransport, got %v", err)
 	}
 }
 

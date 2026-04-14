@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -10,13 +11,15 @@ import (
 
 	"gorancid/pkg/collect"
 	"gorancid/pkg/config"
+	"gorancid/pkg/connect"
 	"gorancid/pkg/devicetype"
 	"gorancid/pkg/git"
 	"gorancid/pkg/notify"
 	"gorancid/pkg/par"
+	"gorancid/pkg/parse"
 )
 
-const version = "0.3.1"
+const version = "0.3.3"
 
 func main() {
 	var (
@@ -77,6 +80,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("devicetype: %v", err)
 	}
+	devicetype.RegisterMissingParsers(typeSpecs)
 
 	outDir := filepath.Join(cfg.BaseDir, group, "configs")
 
@@ -102,19 +106,29 @@ func main() {
 			creds = credStore.Lookup(dev.Hostname)
 		}
 		d, s, c := dev, spec, creds // capture loop vars
-		fc := &collect.FallbackCollector{
-			Device: d,
-			Spec:   s,
-			Creds:  c,
-			OutDir: outDir,
+		filterOpts := parse.FilterOpts{
+			FilterPwds: int(cfg.FilterPwds),
+			FilterOsc:  int(cfg.FilterOsc),
+			NoCommStr:  cfg.NoCommStr,
+		}
+		gc := &collect.GoCollector{
+			Device:     d,
+			Spec:       s,
+			Creds:      c,
+			OutDir:     outDir,
+			FilterOpts: filterOpts,
 		}
 		jobs = append(jobs, func(ctx context.Context) error {
-			result, err := fc.Run(ctx)
+			result, err := gc.Run(ctx)
 			if err != nil {
 				return err
 			}
 			if result.Error != nil {
-				log.Printf("collect %s: %v", result.Hostname, result.Error)
+				if errors.Is(result.Error, connect.ErrNoNativeTransport) {
+					log.Printf("collect %s: %v — add an ssh or telnet method for this host in %s (example: add method * { ssh } or { telnet })", result.Hostname, result.Error, cloginPath)
+				} else {
+					log.Printf("collect %s: %v", result.Hostname, result.Error)
+				}
 			}
 			return nil
 		})

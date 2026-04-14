@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.3] - 2026-04-14
+
+### Added
+
+- **pkg/connect**: native `TelnetSession` (minimal RFC 854 negotiation, username/password prompts, shared command/prompt loop with SSH)
+- **cmd/rancid-ui**: read-only local web server — fleet view from all `router.db` files, per-device on-disk config browser (Prism.js from cdnjs), last `git log -1 -p` diff per `configs/<hostname>`
+- **pkg/git**: `LastCommitPatch` helper for the UI
+
+### Changed
+
+- **pkg/connect**: `NewSession` returns `(Session, error)` and selects **ssh** or **telnet** from `.cloginrc` `method` list order; `ErrNoNativeTransport` when neither is usable
+- **cmd/clogin**: native mode uses `NewSession` (SSH or Telnet); duplicate parser registration removed in favor of `devicetype.RegisterMissingParsers`
+- **cmd/control-rancid**: logs an explicit `.cloginrc` hint when collection fails with `ErrNoNativeTransport`
+
+## [0.3.2] - 2026-04-14
+
+### Added
+
+- **pkg/collect**: `GoCollector` and `CollectDevice` — shared in-process collection (SSH + parsers) used by `cmd/rancid` and `cmd/control-rancid`
+- **pkg/devicetype**: `RegisterMissingParsers` — centralizes dynamic parser alias / generic registration
+
+### Changed
+
+- **cmd/control-rancid**: uses `GoCollector` instead of shelling out to the `rancid` binary
+- **pkg/connect**: removed Expect/clogin subprocess `Session` implementation; `NewSession` returns a native session and requires a usable `method` entry in `.cloginrc` when native collection is requested
+- **pkg/parse/generic**: `DeviceOpts()` enables native SSH for long-tail device types (broad prompt heuristic)
+
+### Removed
+
+- **pkg/collect**: `FallbackCollector` (Perl `rancid` subprocess)
+- **pkg/connect**: `ExpectSession` / `expect.go`
+
 ## [0.3.1] - 2026-04-14
 
 ### Changed

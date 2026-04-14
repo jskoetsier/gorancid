@@ -117,5 +117,11 @@ func TestNtpClockPeriodRemoval(t *testing.T) {
 }
 
 func TestNewSessionIOSXR(t *testing.T) {
-	_ = connect.NewSession("router-01", 22, config.Credentials{}, connect.DeviceOpts{DeviceType: "iosxr"}, "clogin", true)
+	s, err := connect.NewSession("router-01", 22, config.Credentials{}, connect.DeviceOpts{DeviceType: "iosxr"}, "clogin", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s == nil {
+		t.Fatal("expected non-nil session")
+	}
 }

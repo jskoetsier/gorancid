@@ -44,6 +44,21 @@ func Diff(dir, file string) ([]byte, error) {
 	return out, nil
 }
 
+// LastCommitPatch returns the unified diff introduced by the latest commit that touched path.
+func LastCommitPatch(dir, path string) ([]byte, error) {
+	cmd := exec.Command("git", "log", "-1", "-p", "--follow", "--", path)
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		var ee *exec.ExitError
+		if errors.As(err, &ee) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("git log -p: %w", err)
+	}
+	return out, nil
+}
+
 func run(dir, name string, args ...string) error {
 	cmd := exec.Command(name, args...)
 	cmd.Dir = dir

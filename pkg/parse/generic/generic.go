@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	"gorancid/pkg/connect"
 	"gorancid/pkg/parse"
 )
 
@@ -23,6 +24,15 @@ type Parser struct {
 // New returns a generic parser for device types that do not yet have a dedicated implementation.
 func New(deviceType string) *Parser {
 	return &Parser{DeviceType: strings.ToLower(deviceType)}
+}
+
+// DeviceOpts returns permissive SSH shell parameters for unknown device families
+// so native transport can be used instead of legacy login scripts.
+func (p *Parser) DeviceOpts() connect.DeviceOpts {
+	return connect.DeviceOpts{
+		DeviceType:    p.DeviceType,
+		PromptPattern: `(?:^|[\r\n])[^\r\n]{1,200}[#>%$]\s*$`,
+	}
 }
 
 // Parse filters generic command output into stable text without device-specific normalization.

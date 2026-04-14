@@ -1,9 +1,8 @@
-package main
+package devicetype
 
 import (
 	"strings"
 
-	"gorancid/pkg/devicetype"
 	"gorancid/pkg/parse"
 	"gorancid/pkg/parse/generic"
 )
@@ -16,7 +15,9 @@ var moduleParsers = map[string]string{
 	"nxos":      "nxos",
 }
 
-func ensureParserCoverage(specs map[string]devicetype.DeviceSpec) {
+// RegisterMissingParsers ensures every device type in specs has a Go parser
+// registered in pkg/parse, mirroring cmd/rancid coverage rules.
+func RegisterMissingParsers(specs map[string]DeviceSpec) {
 	for name, spec := range specs {
 		if _, ok := parse.Lookup(name); ok {
 			continue
