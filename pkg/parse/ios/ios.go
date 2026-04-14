@@ -15,6 +15,8 @@ import (
 
 func init() {
 	parse.Register("ios", &IOSParser{})
+	parse.RegisterAlias("cisco", "ios")
+	parse.RegisterAlias("cat5k", "ios")
 }
 
 // IOSParser implements parse.Parser for Cisco IOS devices.
@@ -23,10 +25,10 @@ type IOSParser struct{}
 // DeviceOpts returns connection parameters for the SSH connector.
 func (p *IOSParser) DeviceOpts() connect.DeviceOpts {
 	return connect.DeviceOpts{
-		DeviceType:      "ios",
-		PromptPattern:   `[!\r\n][\w./-]+[#>]\s*$`,
-		SetupCommands:   []string{"terminal length 0", "terminal width 0"},
-		EnableCmd:       "enable",
+		DeviceType:       "ios",
+		PromptPattern:    `[!\r\n][\w./-]+[#>]\s*$`,
+		SetupCommands:    []string{"terminal length 0", "terminal width 0"},
+		EnableCmd:        "enable",
 		DisablePagingCmd: "terminal length 0",
 	}
 }
@@ -118,10 +120,10 @@ var (
 	reChassisProc  = regexp.MustCompile(`(?:Cisco\s+)?(\S+(?:\sseries)?)\s+\(([^)]+)\)\s+\(revision[^)]+\)\s+processor\s+.*\bwith\s+(\d+[kK])`)
 	reSerial       = regexp.MustCompile(`(?i)processor board id (\S+)`)
 	reConfigReg    = regexp.MustCompile(`Configuration register is (.+)`)
-	reBootImage   = regexp.MustCompile(`System image file is "([^"]*)"`)
-	rePager       = regexp.MustCompile(`<[-]+ More [-]+>`)
-	reLoadFive    = regexp.MustCompile(`^Load for five`)
-	reTimeSource  = regexp.MustCompile(`^Time source is`)
+	reBootImage    = regexp.MustCompile(`System image file is "([^"]*)"`)
+	rePager        = regexp.MustCompile(`<[-]+ More [-]+>`)
+	reLoadFive     = regexp.MustCompile(`^Load for five`)
+	reTimeSource   = regexp.MustCompile(`^Time source is`)
 )
 
 func processShowVersionLine(line string, md map[string]string) string {
@@ -210,7 +212,7 @@ var (
 
 	// Level 2: also filter secrets/encrypted passwords
 	reEnableSecret   = regexp.MustCompile(`^(\s*enable secret)\s+\S+(.*)`)
-	reUsernameSecret  = regexp.MustCompile(`^(\s*username\s+\S+\s+secret)\s+\S+(.*)`)
+	reUsernameSecret = regexp.MustCompile(`^(\s*username\s+\S+\s+secret)\s+\S+(.*)`)
 	reLineSecret     = regexp.MustCompile(`^(\s*secret)\s+\S+(.*)`)
 )
 
@@ -281,10 +283,16 @@ func processWriteTermLine(line string, md map[string]string, filter parse.Filter
 	// Filter SNMP community strings
 	if filter.NoCommStr {
 		if m := reSnmpCommunity.FindStringSubmatch(line); m != nil {
-			if len(m) >= 3 { return m[1] + " <removed>" + m[2] }; return m[1] + " <removed>"
+			if len(m) >= 3 {
+				return m[1] + " <removed>" + m[2]
+			}
+			return m[1] + " <removed>"
 		}
 		if m := reSnmpHost.FindStringSubmatch(line); m != nil {
-			if len(m) >= 3 { return m[1] + " <removed>" + m[2] }; return m[1] + " <removed>"
+			if len(m) >= 3 {
+				return m[1] + " <removed>" + m[2]
+			}
+			return m[1] + " <removed>"
 		}
 	}
 
@@ -325,7 +333,10 @@ func filterPasswords(line string, level int) string {
 
 	for _, pat := range level1Patterns {
 		if m := pat.FindStringSubmatch(line); m != nil {
-			if len(m) >= 3 { return m[1] + " <removed>" + m[2] }; return m[1] + " <removed>"
+			if len(m) >= 3 {
+				return m[1] + " <removed>" + m[2]
+			}
+			return m[1] + " <removed>"
 		}
 	}
 
@@ -338,7 +349,10 @@ func filterPasswords(line string, level int) string {
 		}
 		for _, pat := range level2Patterns {
 			if m := pat.FindStringSubmatch(line); m != nil {
-				if len(m) >= 3 { return m[1] + " <removed>" + m[2] }; return m[1] + " <removed>"
+				if len(m) >= 3 {
+					return m[1] + " <removed>" + m[2]
+				}
+				return m[1] + " <removed>"
 			}
 		}
 	}

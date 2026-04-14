@@ -31,6 +31,18 @@ func TestRegistered(t *testing.T) {
 	}
 }
 
+func TestRegisteredAliases(t *testing.T) {
+	for _, deviceType := range []string{"cisco", "cat5k"} {
+		p, ok := parse.Lookup(deviceType)
+		if !ok {
+			t.Fatalf("%s parser alias not registered", deviceType)
+		}
+		if _, ok := p.(*IOSParser); !ok {
+			t.Fatalf("%s parser alias is not an IOSParser", deviceType)
+		}
+	}
+}
+
 // ---------------------------------------------------------------------------
 // ShowVersion metadata extraction
 // ---------------------------------------------------------------------------

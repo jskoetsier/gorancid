@@ -12,23 +12,25 @@ Drop-in Go replacement for `rancid-run`, `control_rancid`, and `rancid-cvs`. Per
 - [x] Email diff notifications
 - [x] CLI binaries (rancid-cvs, control-rancid, rancid-run)
 
-## Phase 2: SSH Connector + Core Device Parsers
+## Phase 2: SSH Connector + Core Device Parsers — COMPLETE (v0.2.0)
 
 Replace Expect for the 5 most common device types with native Go SSH sessions.
 
-- [ ] `pkg/connect` — Go SSH connector using `golang.org/x/crypto/ssh`
-- [ ] `pkg/connect` — Expect subprocess fallback for legacy devices
-- [ ] `pkg/parse` — `DeviceParser` interface
-- [ ] `pkg/parse/ios` — Cisco IOS parser
-- [ ] `pkg/parse/iosxr` — Cisco IOS-XR parser
-- [ ] `pkg/parse/junos` — Juniper JunOS parser
-- [ ] `pkg/parse/nxos` — Cisco NX-OS parser
-- [ ] `pkg/parse/fortigate` — Fortinet FortiGate parser
-- [ ] `cmd/rancid` — per-device collector binary (replaces Perl `rancid`)
+- [x] `pkg/connect` — Go SSH connector using `golang.org/x/crypto/ssh`
+- [x] `pkg/connect` — Expect subprocess fallback for legacy devices
+- [x] `pkg/parse` — `DeviceParser` interface
+- [x] `pkg/parse/ios` — Cisco IOS parser
+- [x] `pkg/parse/iosxr` — Cisco IOS-XR parser
+- [x] `pkg/parse/junos` — Juniper JunOS parser
+- [x] `pkg/parse/nxos` — Cisco NX-OS parser
+- [x] `pkg/parse/fortigate` — Fortinet FortiGate parser
+- [x] `cmd/rancid` — per-device collector binary (replaces Perl `rancid`)
 
-## Phase 3: Remaining Device Parsers
+## Phase 3: Remaining Device Parsers — IN PROGRESS
 
 Port the remaining ~30 device parsers from Perl to Go, in batches.
+
+Started with upstream alias compatibility for the Cisco family so native parsing follows real `rancid.types` resolution (`ios -> cisco`) instead of repo-only testdata.
 
 - [ ] Batch 1: aos, cat5k, csm, escape, firew
 - [ ] Batch 2: foundry, hitachi, hp5, mrtd

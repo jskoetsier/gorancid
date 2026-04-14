@@ -42,6 +42,17 @@ func Register(deviceType string, p Parser) {
 	parsers[strings.ToLower(deviceType)] = p
 }
 
+// RegisterAlias maps an additional device type name to an already-registered parser.
+// It is used for upstream RANCID aliases and parser-compatible families.
+func RegisterAlias(deviceType, target string) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if p, ok := parsers[strings.ToLower(target)]; ok {
+		parsers[strings.ToLower(deviceType)] = p
+	}
+}
+
 // Lookup returns the parser for a device type, or false if none is registered.
 func Lookup(deviceType string) (Parser, bool) {
 	mu.RLock()

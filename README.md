@@ -29,7 +29,9 @@ CLI binaries match the original flag interface and exit codes, so existing cron 
 
 ## Current Status
 
-**Phase 1 complete (v0.1.0)** — orchestration layer only. Per-device collection delegates to the original Perl `rancid` binary via the `FallbackCollector`. No device parsers are rewritten yet.
+**Phase 2 complete (v0.2.0)** — native SSH collection and Go parsers ship for `ios`, `iosxr`, `junos`, `nxos`, and `fortigate`, with Expect/Perl fallback retained for unsupported types.
+
+**Phase 3 in progress** — remaining device families are being ported in batches, starting with upstream alias compatibility so parser selection follows real `rancid.types` resolution.
 
 ## Building
 

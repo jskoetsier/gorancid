@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gorancid/pkg/config"
 	"gorancid/pkg/connect"
@@ -100,13 +100,9 @@ func main() {
 		outFile = hostname + ".new"
 	}
 
-	// Check if a Go parser is available for this device type
-	goParserAvailable := false
-	if _, ok := parse.Lookup(*deviceType); ok {
-		goParserAvailable = true
-	}
-
-	if goParserAvailable {
+	// Check if a Go parser is available for the resolved type, not just the user input.
+	// Upstream RANCID maps some user-visible types through aliases (for example ios -> cisco).
+	if _, ok := parse.Lookup(spec.Type); ok {
 		// Use Go-native SSH connection and parser
 		collectWithGoParser(hostname, creds, spec, filterOpts, outFile, cfg)
 	} else {
@@ -121,10 +117,10 @@ func collectWithGoParser(hostname string, creds config.Credentials, spec devicet
 
 	// Get device-specific connection options from the parser if available
 	opts := connect.DeviceOpts{
-		DeviceType:      spec.Type,
-		SetupCommands:   []string{"terminal length 0"},
+		DeviceType:       spec.Type,
+		SetupCommands:    []string{"terminal length 0"},
 		DisablePagingCmd: "terminal length 0",
-		Timeout:         30 * time.Second,
+		Timeout:          30 * time.Second,
 	}
 	// Try to get DeviceOpts from the parser if it implements DeviceOptsProvider
 	if provider, ok := parser.(interface{ DeviceOpts() connect.DeviceOpts }); ok {
