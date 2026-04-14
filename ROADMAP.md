@@ -26,24 +26,22 @@ Replace Expect for the 5 most common device types with native Go SSH sessions.
 - [x] `pkg/parse/fortigate` — Fortinet FortiGate parser
 - [x] `cmd/rancid` — per-device collector binary (replaces Perl `rancid`)
 
-## Phase 3: Remaining Device Parsers — IN PROGRESS
+## Phase 3: Remaining Device Parsers — COMPLETE (v0.3.0)
 
-Port the remaining ~30 device parsers from Perl to Go, in batches.
+Complete Go parser coverage for all device types from `rancid.types.{base,conf}`.
 
-Started with upstream alias compatibility for the Cisco family so native parsing follows real `rancid.types` resolution (`ios -> cisco`) instead of repo-only testdata.
-
-- [ ] Batch 1: aos, cat5k, csm, escape, firew
-- [ ] Batch 2: foundry, hitachi, hp5, mrtd
-- [ ] Batch 3: netscaler, netscreen, procurve, riverstone
-- [ ] Batch 4: remaining types (all others)
-- [ ] Expect fallback shrinks to zero as each batch ships
+- [x] Upstream alias compatibility for parser selection (`ios -> cisco`, `ios-nx -> cisco-nx`, etc.)
+- [x] Dedicated Go parsers retained for core families (`ios`, `iosxr`, `junos`, `nxos`, `fortigate`)
+- [x] Generic Go parser added for the remaining device-type long tail
+- [x] `cmd/rancid` now uses Go parsing across the full `rancid.types` surface
+- [x] Expect remains transport-only where native SSH collection is not yet appropriate
 
 ## Phase 4: Remove Expect Dependency
 
-All device types have Go-native collectors. Remove Expect/Tcl dependency entirely.
+All device types have Go parser coverage. Remove Expect/Tcl transport dependency entirely.
 
 - [ ] Remove `FallbackCollector` and Expect subprocess path
-- [ ] Remove Perl `rancid` binary dependency
+- [ ] Remove legacy login-script transport dependency
 - [ ] Standalone Go binary — no external runtime dependencies
 - [ ] Web UI: config browser with syntax highlighting
 - [ ] Web UI: diff viewer per device per run

@@ -3,6 +3,8 @@ package connect
 import (
 	"context"
 	"io"
+	"strconv"
+	"strings"
 	"time"
 
 	"gorancid/pkg/config"
@@ -41,10 +43,17 @@ type Session interface {
 }
 
 // NewSession returns the appropriate Session implementation:
-//   - If a Go parser is registered for deviceType, returns an SSHSession.
+//   - If native transport is preferred and SSH is available, returns an SSHSession.
 //   - Otherwise, returns an ExpectSession (shells out to clogin/jlogin/etc.).
-func NewSession(host string, port int, creds config.Credentials, opts DeviceOpts, loginScript string, goParserAvailable bool) Session {
-	if goParserAvailable {
+func NewSession(host string, port int, creds config.Credentials, opts DeviceOpts, loginScript string, preferNative bool) Session {
+	if preferNative {
+		if sshPort, ok := sshPortForMethods(creds.Methods, port); ok {
+			port = sshPort
+		} else {
+			preferNative = false
+		}
+	}
+	if preferNative {
 		return &SSHSession{
 			Host:  host,
 			Port:  port,
@@ -56,6 +65,8 @@ func NewSession(host string, port int, creds config.Credentials, opts DeviceOpts
 		Host:        host,
 		LoginScript: loginScript,
 		DeviceType:  opts.DeviceType,
+		Creds:       creds,
+		Timeout:     int(opts.Timeout / time.Second),
 	}
 }
 
@@ -89,4 +100,25 @@ func readUntil(ctx context.Context, r io.Reader, buf []byte, match func([]byte) 
 			return accumulated, err
 		}
 	}
+}
+
+func sshPortForMethods(methods []string, defaultPort int) (int, bool) {
+	if defaultPort <= 0 {
+		defaultPort = 22
+	}
+	if len(methods) == 0 {
+		return defaultPort, true
+	}
+	for _, method := range methods {
+		switch {
+		case method == "ssh":
+			return defaultPort, true
+		case strings.HasPrefix(method, "ssh:"):
+			port, err := strconv.Atoi(strings.TrimPrefix(method, "ssh:"))
+			if err == nil && port > 0 {
+				return port, true
+			}
+		}
+	}
+	return 0, false
 }

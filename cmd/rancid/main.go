@@ -17,13 +17,14 @@ import (
 
 	// Register device parsers
 	_ "gorancid/pkg/parse/fortigate"
+	_ "gorancid/pkg/parse/generic"
 	_ "gorancid/pkg/parse/ios"
 	_ "gorancid/pkg/parse/iosxr"
 	_ "gorancid/pkg/parse/junos"
 	_ "gorancid/pkg/parse/nxos"
 )
 
-const version = "0.2.0"
+const version = "0.3.0"
 
 func main() {
 	var (
@@ -81,6 +82,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("devicetype: %v", err)
 	}
+	ensureParserCoverage(typeSpecs)
 
 	spec, ok := devicetype.Lookup(typeSpecs, *deviceType)
 	if !ok {
@@ -100,68 +102,50 @@ func main() {
 		outFile = hostname + ".new"
 	}
 
-	// Check if a Go parser is available for the resolved type, not just the user input.
-	// Upstream RANCID maps some user-visible types through aliases (for example ios -> cisco).
-	if _, ok := parse.Lookup(spec.Type); ok {
-		// Use Go-native SSH connection and parser
-		collectWithGoParser(hostname, creds, spec, filterOpts, outFile, cfg)
-	} else {
-		// Fall back to Expect subprocess + Perl rancid
-		collectWithFallback(hostname, spec, outFile)
-	}
+	collectWithGoParser(hostname, creds, spec, filterOpts, outFile, cfg)
 }
 
-// collectWithGoParser connects via SSH, runs commands, and parses output in Go.
+type deviceOptsProvider interface {
+	DeviceOpts() connect.DeviceOpts
+}
+
+type bulkRunner interface {
+	RunAll(ctx context.Context, commands []string) ([]byte, error)
+}
+
+// collectWithGoParser connects via SSH or Expect transport, runs commands, and parses output in Go.
 func collectWithGoParser(hostname string, creds config.Credentials, spec devicetype.DeviceSpec, filterOpts parse.FilterOpts, outFile string, cfg config.Config) {
 	parser, _ := parse.Lookup(spec.Type)
 
-	// Get device-specific connection options from the parser if available
 	opts := connect.DeviceOpts{
-		DeviceType:       spec.Type,
-		SetupCommands:    []string{"terminal length 0"},
-		DisablePagingCmd: "terminal length 0",
-		Timeout:          30 * time.Second,
+		DeviceType: spec.Type,
+		Timeout:    30 * time.Second,
 	}
-	// Try to get DeviceOpts from the parser if it implements DeviceOptsProvider
-	if provider, ok := parser.(interface{ DeviceOpts() connect.DeviceOpts }); ok {
+	preferNative := false
+	if provider, ok := parser.(deviceOptsProvider); ok {
 		opts = provider.DeviceOpts()
-	}
-
-	// Determine SSH port from methods
-	port := 22
-	for _, m := range creds.Methods {
-		if m == "telnet" {
-			port = 23
+		if opts.Timeout == 0 {
+			opts.Timeout = 30 * time.Second
 		}
+		preferNative = true
 	}
 
-	// Connect
-	session := &connect.SSHSession{
-		Host:  hostname,
-		Port:  port,
-		Creds: creds,
-		Opts:  opts,
-	}
 	ctx := context.Background()
-
+	session := connect.NewSession(hostname, 22, creds, opts, spec.LoginScript, preferNative)
 	if err := session.Connect(ctx); err != nil {
 		log.Fatalf("connect %s: %v", hostname, err)
 	}
 	defer session.Close()
 
-	// Run each command from the device spec
-	var allOutput []byte
+	commandList := make([]string, 0, len(spec.Commands))
 	for _, cmd := range spec.Commands {
-		output, err := session.RunCommand(ctx, cmd.CLI)
-		if err != nil {
-			log.Printf("command %q on %s: %v", cmd.CLI, hostname, err)
-			continue
-		}
-		allOutput = append(allOutput, output...)
-		allOutput = append(allOutput, '\n')
+		commandList = append(commandList, cmd.CLI)
+	}
+	allOutput, err := collectOutput(ctx, session, commandList, hostname)
+	if err != nil {
+		log.Fatalf("collect %s: %v", hostname, err)
 	}
 
-	// Parse the collected output
 	parsed, err := parser.Parse(allOutput, filterOpts)
 	if err != nil {
 		log.Fatalf("parse %s: %v", hostname, err)
@@ -186,24 +170,20 @@ func collectWithGoParser(hostname string, creds config.Credentials, spec devicet
 	}
 }
 
-// collectWithFallback shells out to the original Perl rancid script.
-func collectWithFallback(hostname string, spec devicetype.DeviceSpec, outFile string) {
-	bin := spec.Script
-	if bin == "" {
-		bin = fmt.Sprintf("rancid -t %s", spec.Type)
+func collectOutput(ctx context.Context, session connect.Session, commands []string, hostname string) ([]byte, error) {
+	if bulk, ok := session.(bulkRunner); ok {
+		return bulk.RunAll(ctx, commands)
 	}
 
-	// Parse the script field — it's "rancid -t <type>"
-	parts := strings.Fields(bin)
-	args := append(parts[1:], hostname)
-
-	cmd := context.Background()
-	result, err := connect.RunExpectCommand(cmd, parts[0], args, "")
-	if err != nil {
-		log.Fatalf("fallback %s: %v", hostname, err)
+	var allOutput []byte
+	for _, cmd := range commands {
+		output, err := session.RunCommand(ctx, cmd)
+		if err != nil {
+			log.Printf("command %q on %s: %v", cmd, hostname, err)
+			continue
+		}
+		allOutput = append(allOutput, output...)
+		allOutput = append(allOutput, '\n')
 	}
-
-	if err := os.WriteFile(outFile, result, 0644); err != nil {
-		log.Fatalf("write %s: %v", outFile, err)
-	}
+	return allOutput, nil
 }

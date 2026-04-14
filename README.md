@@ -24,15 +24,16 @@ CLI binaries match the original flag interface and exit codes, so existing cron 
 | Binary | Replaces | Purpose |
 |--------|----------|---------|
 | `clogin` | `clogin` / `plogin` | Interactive device login using `.cloginrc`, with device-type lookup from `router.db` |
+| `rancid` | `rancid` | Per-device collector using Go parsers for all known device types |
 | `rancid-cvs` | `rancid-cvs` | Initialize git repos and group directory structure |
 | `control-rancid` | `control_rancid` | Per-group collection orchestrator |
 | `rancid-run` | `rancid-run` | Cron entry point — iterates groups, calls control-rancid |
 
 ## Current Status
 
-**Phase 2 complete (v0.2.0)** — native SSH collection and Go parsers ship for `ios`, `iosxr`, `junos`, `nxos`, and `fortigate`, with Expect/Perl fallback retained for unsupported types.
+**Phase 3 complete (v0.3.0)** — all device types in `rancid.types.{base,conf}` now have Go parser coverage, using dedicated parsers for the core families and a generic Go parser for the remaining long tail.
 
-**Phase 3 in progress** — remaining device families are being ported in batches, starting with upstream alias compatibility so parser selection follows real `rancid.types` resolution.
+**Phase 4 next** — Expect/legacy login-script transport remains where native SSH collection is not yet appropriate; removing that dependency is now a separate transport-focused phase.
 
 ## Building
 
@@ -47,6 +48,7 @@ go build -o rancid-cvs ./cmd/rancid-cvs/
 go build -o control-rancid ./cmd/control-rancid/
 go build -o rancid-run ./cmd/rancid-run/
 go build -o clogin ./cmd/clogin/
+go build -o rancid ./cmd/rancid/
 ```
 
 Cross-compile for Linux:
