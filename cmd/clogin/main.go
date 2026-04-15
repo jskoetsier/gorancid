@@ -25,7 +25,7 @@ import (
 	_ "gorancid/pkg/parse/nxos"
 )
 
-const version = "0.3.3"
+const version = "0.3.4"
 
 func main() {
 	var (

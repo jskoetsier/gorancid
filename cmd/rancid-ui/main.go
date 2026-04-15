@@ -21,7 +21,7 @@ import (
 //go:embed templates/*.html
 var templateFS embed.FS
 
-const version = "0.3.3"
+const version = "0.3.4"
 
 var hostPat = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]*$`)
 
