@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.6] - 2026-04-15
+
+### Added
+
+- **ci**: GitLab pipeline now builds Debian packages for `amd64` and `arm64` with `nfpm`, publishing `.deb` artifacts that install the gorancid binaries under `/usr/local/rancid/bin`
+
+### Changed
+
+- **release**: bump embedded `-V` / version strings to `0.3.6` for all binaries; refresh README Phase 4 version marker
+
 ## [0.3.5] - 2026-04-15
 
 ### Changed
