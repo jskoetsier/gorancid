@@ -43,7 +43,7 @@ If neither appears (for example only `rsh`), collection fails with a clear error
 
 **Phase 3 complete (v0.3.0)** — all device types in `rancid.types.{base,conf}` now have Go parser coverage, using dedicated parsers for the core families and a generic Go parser for the remaining long tail.
 
-**Phase 4 in progress (v0.3.4)** — in-process collection over **SSH or Telnet** (no Expect for transport). `cmd/rancid-ui` provides a local fleet/config/diff browser. Interactive `clogin` still falls back to legacy login scripts when native transport is unavailable (for example unknown device types without `DeviceOpts`).
+**Phase 4 in progress (v0.3.5)** — in-process collection over **SSH or Telnet** (no Expect for transport). `cmd/rancid-ui` provides a local fleet/config/diff browser. Interactive `clogin` still falls back to legacy login scripts when native transport is unavailable (for example unknown device types without `DeviceOpts`).
 
 ## Building
 

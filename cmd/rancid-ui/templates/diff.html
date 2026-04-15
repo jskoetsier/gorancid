@@ -4,19 +4,22 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>{{.Title}} — rancid-ui</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" crossorigin="anonymous" referrerpolicy="no-referrer"/>
   <style>
     body { font-family: system-ui, sans-serif; margin: 1rem 2rem; color: #111; }
     a { color: #0645ad; }
-    pre { max-width: 100%; overflow: auto; }
+    pre {
+      max-width: 100%;
+      overflow: auto;
+      padding: 1rem;
+      border: 1px solid #ccc;
+      background: #f7f7f7;
+      line-height: 1.4;
+    }
   </style>
 </head>
 <body>
   <p><a href="/">Fleet</a> · <a href="/group/{{.Group}}">Group {{.Group}}</a> · <a href="/group/{{.Group}}/device/{{.Host}}/config">config</a></p>
   <h1>Last commit touching {{.Host}}</h1>
-  <pre><code class="language-diff">{{.Patch}}</code></pre>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-diff.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script>Prism.highlightAll();</script>
+  <pre><code>{{.Patch}}</code></pre>
 </body>
 </html>

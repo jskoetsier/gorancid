@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.5] - 2026-04-15
+
+### Changed
+
+- **cmd/rancid-ui**: remove external Prism.js / cdnjs dependencies from the config and diff views, render with local inline styles only, and add a restrictive Content Security Policy for the read-only UI
+- **release**: bump embedded `-V` / version strings to `0.3.5` for all binaries; refresh README Phase 4 version marker
+
 ## [0.3.4] - 2026-04-15
 
 ### Changed

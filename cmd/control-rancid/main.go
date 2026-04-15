@@ -19,7 +19,7 @@ import (
 	"gorancid/pkg/parse"
 )
 
-const version = "0.3.4"
+const version = "0.3.5"
 
 func main() {
 	var (
