@@ -1,0 +1,28 @@
+name: gorancid
+arch: @ARCH@
+platform: linux
+version: @VERSION@
+section: net
+priority: optional
+maintainer: Gorancid Maintainers
+description: |
+  Go rewrite of RANCID for collecting network device configurations.
+homepage: @PROJECT_URL@
+license: same-as-upstream-rancid
+contents:
+  - src: ./bin/linux-@ARCH@/clogin
+    dst: /usr/local/rancid/bin/clogin
+  - src: ./bin/linux-@ARCH@/rancid
+    dst: /usr/local/rancid/bin/rancid
+  - src: ./bin/linux-@ARCH@/rancid-cvs
+    dst: /usr/local/rancid/bin/rancid-cvs
+  - src: ./bin/linux-@ARCH@/control-rancid
+    dst: /usr/local/rancid/bin/control-rancid
+  - src: ./bin/linux-@ARCH@/rancid-run
+    dst: /usr/local/rancid/bin/rancid-run
+  - src: ./bin/linux-@ARCH@/rancid-ui
+    dst: /usr/local/rancid/bin/rancid-ui
+  - src: ./README.md
+    dst: /usr/share/doc/gorancid/README.md
+  - src: ./CHANGELOG.md
+    dst: /usr/share/doc/gorancid/changelog.md

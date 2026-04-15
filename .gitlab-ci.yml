@@ -1,6 +1,7 @@
 stages:
   - test
   - build
+  - package
 
 variables:
   GO_IMAGE: golang:1.25-bookworm
@@ -21,20 +22,57 @@ build:
   variables:
     CGO_ENABLED: "0"
   script:
-    - mkdir -p bin
-    - GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/clogin-linux-amd64 ./cmd/clogin/
-    - GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/rancid-linux-amd64 ./cmd/rancid/
-    - GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/rancid-cvs-linux-amd64 ./cmd/rancid-cvs/
-    - GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/control-rancid-linux-amd64 ./cmd/control-rancid/
-    - GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/rancid-run-linux-amd64 ./cmd/rancid-run/
-    - GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o bin/clogin-linux-arm64 ./cmd/clogin/
-    - GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o bin/rancid-linux-arm64 ./cmd/rancid/
-    - GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o bin/rancid-cvs-linux-arm64 ./cmd/rancid-cvs/
-    - GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o bin/control-rancid-linux-arm64 ./cmd/control-rancid/
-    - GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o bin/rancid-run-linux-arm64 ./cmd/rancid-run/
+    - mkdir -p bin/linux-amd64 bin/linux-arm64
+    - GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/linux-amd64/clogin ./cmd/clogin/
+    - GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/linux-amd64/rancid ./cmd/rancid/
+    - GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/linux-amd64/rancid-cvs ./cmd/rancid-cvs/
+    - GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/linux-amd64/control-rancid ./cmd/control-rancid/
+    - GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/linux-amd64/rancid-run ./cmd/rancid-run/
+    - GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/linux-amd64/rancid-ui ./cmd/rancid-ui/
+    - GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o bin/linux-arm64/clogin ./cmd/clogin/
+    - GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o bin/linux-arm64/rancid ./cmd/rancid/
+    - GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o bin/linux-arm64/rancid-cvs ./cmd/rancid-cvs/
+    - GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o bin/linux-arm64/control-rancid ./cmd/control-rancid/
+    - GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o bin/linux-arm64/rancid-run ./cmd/rancid-run/
+    - GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o bin/linux-arm64/rancid-ui ./cmd/rancid-ui/
   artifacts:
     paths:
       - bin/
+    expire_in: 30 days
+  rules:
+    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+package-deb:
+  stage: package
+  image: $GO_IMAGE
+  needs:
+    - job: build
+      artifacts: true
+  variables:
+    CGO_ENABLED: "0"
+  script:
+    - |
+      if [ -n "$CI_COMMIT_TAG" ]; then
+        PACKAGE_VERSION="${CI_COMMIT_TAG#v}"
+      else
+        PACKAGE_VERSION="0.0.0~git${CI_COMMIT_SHORT_SHA}"
+      fi
+      export PACKAGE_VERSION
+    - GOBIN=/usr/local/bin go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.41.2
+    - mkdir -p dist
+    - |
+      for arch in amd64 arm64; do
+        sed \
+          -e "s/@ARCH@/${arch}/g" \
+          -e "s/@VERSION@/${PACKAGE_VERSION}/g" \
+          -e "s#@PROJECT_URL@#${CI_PROJECT_URL}#g" \
+          packaging/nfpm.yaml.tmpl > nfpm.generated.yaml
+        nfpm package --config nfpm.generated.yaml --packager deb --target "dist/gorancid_${PACKAGE_VERSION}_${arch}.deb"
+      done
+  artifacts:
+    paths:
+      - dist/*.deb
     expire_in: 30 days
   rules:
     - if: $CI_COMMIT_TAG

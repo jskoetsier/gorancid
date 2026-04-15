@@ -37,7 +37,7 @@ If neither appears (for example only `rsh`), collection fails with a clear error
 | `rancid-cvs` | `rancid-cvs` | Initialize git repos and group directory structure |
 | `control-rancid` | `control_rancid` | Per-group collection orchestrator |
 | `rancid-run` | `rancid-run` | Cron entry point — iterates groups, calls control-rancid |
-| `rancid-ui` | _(new)_ | Read-only local web UI — fleet table, config browser (Prism highlighting), last per-device git diff |
+| `rancid-ui` | _(new)_ | Read-only local web UI — fleet table, config browser, last per-device git diff |
 
 ## Current Status
 
