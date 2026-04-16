@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.0] - 2026-04-16
+
+### Added
+
+- **pkg/parse/aeos**: Arista EOS parser with section-based processing for `show version`, `show boot-config`, `show env all`, `show inventory`, `show boot-extensions`, `show extensions`, `diff startup-config running-config`, and `show running-config`. Includes metadata extraction (model, serial, version), password/secret/SNMP community filtering, consecutive `!` collapsing, and EOS prompt pattern support (including `[HH:MM]` timestamp prefix)
+- **pkg/connect**: SCP protocol support for downloading device configuration files over the existing SSH connection (`SCPDownload` method on `SSHSession`, `SCPDownloader` interface, `SCPConfigFile` field on `DeviceOpts`)
+- **pkg/connect**: Legacy key exchange algorithm support (`diffie-hellman-group-exchange-sha1`, `diffie-hellman-group1-sha1`) for older network devices that don't support modern algorithms
+- **pkg/connect**: Automatic `--More--` pager prompt handling in SSH `readUntilPrompt` — detects pager prompts and sends space to continue output
+- **pkg/collect**: SCP-first collection with SSH fallback — when `SCPConfigFile` is set, the collector downloads the config via SCP first; if SCP fails (e.g., not enabled on device), it falls back to running config commands via SSH
+- **pkg/parse/fortigate**: `#private-encryption-key=` and `FortinetPasswordMask` line filtering for SCP-downloaded configs; case-insensitive `System time` / `Cluster uptime` regex matching
+- **pkg/devicetype/coverage**: `"aeos"` added to `moduleParsers` map for Arista EOS device type resolution
+
+### Changed
+
+- **pkg/parse/fortigate**: `DeviceOpts()` now sets `SCPConfigFile: "fgt-config"` to use SCP-based config download instead of `show full-configuration` over interactive SSH, and adds VDOM-aware setup commands (`config global` / `config system console` / `set output standard` / `end` / `end`)
+- **pkg/collect**: `CollectDevice` dispatches to `collectSCPAndSSH` when `DeviceOpts.SCPConfigFile` is set, otherwise uses the standard `collectOutput` path
+- **pkg/collect**: Command echo re-injection in `collectOutput` — `RunCommand` strips command echoes, but parsers need them for section boundary detection; the collector now prepends each command name before its output
+- **cmd/rancid**: Uses `spec.Timeout` from device type configuration (e.g., `fortigate-full;timeout;90`) instead of hardcoded 30s
+
+### Fixed
+
+- Empty config output (0 bytes) caused by `RunCommand` stripping command echoes that parsers relied on for section detection
+- FortiGate `fortiscp` devices producing no output because no `command` entries existed in `rancid.types.conf`
+- FortiGate `show full-configuration` timing out at 30s — now uses SCP download with spec timeout support
+- FortiGate `--More--` pager output appearing in collected configs despite setup commands
+
 ## [0.3.6] - 2026-04-15
 
 ### Added

@@ -25,9 +25,10 @@ func (p *FortiGateParser) DeviceOpts() connect.DeviceOpts {
 	return connect.DeviceOpts{
 		DeviceType:       "fortigate",
 		PromptPattern:    `(?:^|[\r\n])[^\r\n]*[#\$]\s*$`,
-		SetupCommands:    []string{"config system console", "set output standard", "end"},
+		SetupCommands:    []string{"config global", "config system console", "set output standard", "end", "end"},
 		EnableCmd:        "",
 		DisablePagingCmd: "config system console\nset output standard\nend",
+		SCPConfigFile:    "fgt-config",
 	}
 }
 
@@ -96,8 +97,8 @@ var (
 	reFGSerial       = regexp.MustCompile(`^Serial-Number:\s+(\S+)$`)
 	reFGHostname     = regexp.MustCompile(`^Hostname:\s+(.+)$`)
 	reSigDB          = regexp.MustCompile(`^(?:APP-DB|AV AI/ML Model|Botnet DB|Extended DB|IPS-DB|IPS-ETDB|IPS Malicious URL Database|Virus-DB|Proxy-APP-DB|Proxy-IPS-ETDB|industrial-db)`)
-	reSystemTime     = regexp.MustCompile(`^system time:`)
-	reClusterUptime  = regexp.MustCompile(`^Cluster uptime:`)
+	reSystemTime     = regexp.MustCompile(`(?i)^system time:`)
+	reClusterUptime  = regexp.MustCompile(`(?i)^Cluster uptime:`)
 	reForticlientSig = regexp.MustCompile(`^FortiClient application signature package:`)
 	reFGModel        = regexp.MustCompile(`FortiGate-(\S+)`)
 )
@@ -161,6 +162,10 @@ var (
 	reConfSystemTime = regexp.MustCompile(`^!\s*System time:`)
 	// Config version line (oscillating)
 	reConfFileVer = regexp.MustCompile(`conf_file_ver=`)
+	// Private encryption key line (from SCP-downloaded configs)
+	rePrivateEncKey = regexp.MustCompile(`^#private-encryption-key=`)
+	// Pager output lines
+	rePagerLine = regexp.MustCompile(`^--More--`)
 	// Password/encryption patterns: FortiGate uses "ENC <base64value>" format
 	reEncPassword = regexp.MustCompile(`(?i)^(.*\bENC)\s+\S+(.*)`)
 	// Last-login pattern
@@ -170,19 +175,36 @@ var (
 	rePrivateKeyEnd   = regexp.MustCompile(`-----END (?:RSA |EC |DSA )?PRIVATE KEY-----`)
 	// md5-key pattern
 	reMD5Key = regexp.MustCompile(`^(.*\bmd5-key)\s+\S+(.*)`)
+	// FortinetPasswordMask pattern (from SCP-downloaded configs)
+	reFortinetPwdMask = regexp.MustCompile(`(?i)^(.*FortinetPasswordMask)`)
 )
 
 func processShowConfLine(line string, filter parse.FilterOpts, inPrivateKey *bool) string {
 	trimmed := strings.TrimSpace(line)
+
+	// Remove pager output lines (--More--)
+	if rePagerLine.MatchString(trimmed) {
+		return ""
+	}
 
 	// Remove "!System time:" lines
 	if reConfSystemTime.MatchString(trimmed) {
 		return ""
 	}
 
-	// Remove "conf_file_ver=" lines
+	// Remove "conf_file_ver=" lines (appear in both SSH and SCP output)
 	if reConfFileVer.MatchString(trimmed) {
 		return ""
+	}
+
+	// Remove "#private-encryption-key=" lines (from SCP-downloaded configs)
+	if rePrivateEncKey.MatchString(trimmed) {
+		return ""
+	}
+
+	// Remove FortinetPasswordMask lines (from SCP-downloaded configs)
+	if m := reFortinetPwdMask.FindStringSubmatch(trimmed); m != nil {
+		return m[1] + " <removed>"
 	}
 
 	// Private key filtering (FilterOsc > 0): suppress entire key block

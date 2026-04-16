@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"os/signal"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -47,12 +49,27 @@ func (s *SSHSession) Connect(ctx context.Context) error {
 	}
 	addr := fmt.Sprintf("%s:%d", s.Host, s.Port)
 
-	// Build SSH config
+	// Build SSH config — include legacy key exchange algorithms for older
+	// network devices that only support diffie-hellman-group1-sha1 etc.
 	sshConfig := &ssh.ClientConfig{
 		User:            s.Creds.Username,
 		Auth:            sshAuthMethods(s.Creds),
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // RANCID doesn't check host keys
 		Timeout:         15 * time.Second,
+		Config: ssh.Config{
+			KeyExchanges: []string{
+				"mlkem768x25519-sha256",
+				"curve25519-sha256",
+				"curve25519-sha256@libssh.org",
+				"ecdh-sha2-nistp256",
+				"ecdh-sha2-nistp384",
+				"ecdh-sha2-nistp521",
+				"diffie-hellman-group14-sha256",
+				"diffie-hellman-group14-sha1",
+				"diffie-hellman-group-exchange-sha1",
+				"diffie-hellman-group1-sha1",
+			},
+		},
 	}
 
 	// Dial
@@ -148,6 +165,7 @@ func (s *SSHSession) Connect(ctx context.Context) error {
 	for _, cmd := range s.Opts.SetupCommands {
 		if _, err := s.RunCommand(ctx, cmd); err != nil {
 			// Setup commands are best-effort — some devices don't support them
+			log.Printf("setup command %q on %s: %v", cmd, s.Host, err)
 			continue
 		}
 	}
@@ -343,7 +361,10 @@ func getSize(fd int) (cols, rows int, err error) {
 	return int(ws.Col), int(ws.Row), nil
 }
 
+var rePagerPrompt = regexp.MustCompile(`--More--| --More-- `)
+
 // readUntilPrompt reads from the session stdout until the prompt pattern matches.
+// When a pager prompt (like --More--) is detected, it sends a space to continue output.
 func (s *SSHSession) readUntilPrompt(ctx context.Context, buf []byte, timeout time.Duration) ([]byte, error) {
 	deadline := time.Now().Add(timeout)
 	var accumulated []byte
@@ -362,8 +383,17 @@ func (s *SSHSession) readUntilPrompt(ctx context.Context, buf []byte, timeout ti
 		if n > 0 {
 			accumulated = append(accumulated, buf[:n]...)
 
-			// Check for prompt
+			// Check for pager prompts and send space to continue
 			cleaned := s.cleanANSI(accumulated)
+			if rePagerPrompt.Match(cleaned) {
+				// Send space to page through the output
+				fmt.Fprint(s.stdin, " ")
+				// Remove the pager prompt from accumulated output
+				accumulated = rePagerPrompt.ReplaceAll(accumulated, nil)
+				continue
+			}
+
+			// Check for prompt
 			if s.prompt.Match(cleaned) {
 				return accumulated, nil
 			}
@@ -419,4 +449,128 @@ func cleanANSIBytes(data []byte) []byte {
 // cleanANSI strips ANSI escape sequences from the output.
 func (s *SSHSession) cleanANSI(data []byte) []byte {
 	return cleanANSIBytes(data)
+}
+
+// SCPDownload downloads a file from the remote device using the SCP protocol.
+// It opens a new SSH session on the existing client connection and runs
+// "scp -f <remotePath>" to transfer the file. This is used for devices like
+// FortiGate where downloading the config file via SCP is more reliable than
+// running "show full-configuration" interactively.
+func (s *SSHSession) SCPDownload(ctx context.Context, remotePath string) ([]byte, error) {
+	if s.client == nil {
+		return nil, fmt.Errorf("not connected")
+	}
+
+	scpSession, err := s.client.NewSession()
+	if err != nil {
+		return nil, fmt.Errorf("scp session: %w", err)
+	}
+	defer scpSession.Close()
+
+	stdin, err := scpSession.StdinPipe()
+	if err != nil {
+		return nil, fmt.Errorf("scp stdin: %w", err)
+	}
+	stdout, err := scpSession.StdoutPipe()
+ if err != nil {
+		return nil, fmt.Errorf("scp stdout: %w", err)
+	}
+
+	if err := scpSession.Start(fmt.Sprintf("scp -f %s", remotePath)); err != nil {
+		return nil, fmt.Errorf("scp start: %w", err)
+	}
+
+	timeout := s.Opts.Timeout
+	if timeout == 0 {
+		timeout = 120 * time.Second
+	}
+	deadline := time.Now().Add(timeout)
+
+	// Send initial acknowledgment
+	if _, err := stdin.Write([]byte{0}); err != nil {
+		return nil, fmt.Errorf("scp ack: %w", err)
+	}
+
+	// Read SCP file header: C<mode> <size> <filename>\n
+	var header []byte
+	buf := make([]byte, 1)
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+		if time.Now().After(deadline) {
+			return nil, ErrTimeout
+		}
+		n, err := stdout.Read(buf)
+		if n > 0 {
+			header = append(header, buf[0])
+			if buf[0] == '\n' {
+				break
+			}
+		}
+		if err != nil {
+			return nil, fmt.Errorf("scp header read: %w", err)
+		}
+	}
+
+	// Parse header: C<mode> <size> <filename>
+	headerStr := strings.TrimSpace(string(header))
+	if len(headerStr) == 0 || headerStr[0] != 'C' {
+		return nil, fmt.Errorf("scp: unexpected header %q", headerStr)
+	}
+	parts := strings.Fields(headerStr[1:]) // skip 'C'
+	if len(parts) < 2 {
+		return nil, fmt.Errorf("scp: malformed header %q", headerStr)
+	}
+	fileSize, err := strconv.ParseInt(parts[1], 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("scp: invalid size in header %q: %w", headerStr, err)
+	}
+
+	// Acknowledge the header
+	if _, err := stdin.Write([]byte{0}); err != nil {
+		return nil, fmt.Errorf("scp ack header: %w", err)
+	}
+
+	// Read file content
+	content := make([]byte, fileSize)
+	totalRead := 0
+	for totalRead < int(fileSize) {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+		if time.Now().After(deadline) {
+			return nil, ErrTimeout
+		}
+		n, err := stdout.Read(content[totalRead:])
+		totalRead += n
+		if err != nil && err != io.EOF {
+			return nil, fmt.Errorf("scp read content: %w", err)
+		}
+	}
+
+	// Acknowledge end of transfer
+	if _, err := stdin.Write([]byte{0}); err != nil {
+		return nil, fmt.Errorf("scp ack end: %w", err)
+	}
+
+	// Wait for the SCP session to finish
+	done := make(chan error, 1)
+	go func() {
+		done <- scpSession.Wait()
+	}()
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case err := <-done:
+		if err != nil && err != io.EOF {
+			return nil, fmt.Errorf("scp wait: %w", err)
+		}
+	}
+
+	return content[:totalRead], nil
 }

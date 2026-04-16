@@ -523,14 +523,17 @@ func TestDeviceOpts(t *testing.T) {
 	if opts.PromptPattern != `(?:^|[\r\n])[^\r\n]*[#\$]\s*$` {
 		t.Errorf("PromptPattern = %q, unexpected value", opts.PromptPattern)
 	}
-	if len(opts.SetupCommands) != 3 {
-		t.Errorf("len(SetupCommands) = %d, want 3", len(opts.SetupCommands))
+	if len(opts.SetupCommands) != 5 {
+		t.Errorf("len(SetupCommands) = %d, want 5", len(opts.SetupCommands))
 	}
 	if opts.EnableCmd != "" {
 		t.Errorf("EnableCmd = %q, want empty", opts.EnableCmd)
 	}
 	if opts.DisablePagingCmd != "config system console\nset output standard\nend" {
 		t.Errorf("DisablePagingCmd = %q, unexpected value", opts.DisablePagingCmd)
+	}
+	if opts.SCPConfigFile != "fgt-config" {
+		t.Errorf("SCPConfigFile = %q, want %q", opts.SCPConfigFile, "fgt-config")
 	}
 }
 

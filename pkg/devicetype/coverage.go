@@ -8,6 +8,7 @@ import (
 )
 
 var moduleParsers = map[string]string{
+	"aeos":      "aeos",
 	"fortigate": "fortigate",
 	"ios":       "ios",
 	"iosxr":     "iosxr",

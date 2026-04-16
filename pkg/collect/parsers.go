@@ -2,6 +2,7 @@ package collect
 
 // Side-effect imports register all device parsers for CollectDevice / GoCollector.
 import (
+	_ "gorancid/pkg/parse/aeos"
 	_ "gorancid/pkg/parse/fortigate"
 	_ "gorancid/pkg/parse/generic"
 	_ "gorancid/pkg/parse/ios"

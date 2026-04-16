@@ -12,7 +12,7 @@ import (
 	"gorancid/pkg/config"
 )
 
-const version = "0.3.6"
+const version = "0.4.0"
 
 func main() {
 	var (

@@ -30,6 +30,10 @@ type DeviceOpts struct {
 	DisablePagingCmd string
 	// Timeout is the per-command timeout. Defaults to 30s.
 	Timeout time.Duration
+	// SCPConfigFile, when set, causes the collector to download the device
+	// configuration via SCP instead of running show commands. The value is
+	// the remote file path (e.g. "fgt-config" for FortiGate).
+	SCPConfigFile string
 }
 
 // Session is the interface for interacting with a network device.
@@ -40,6 +44,12 @@ type Session interface {
 	RunCommand(ctx context.Context, cmd string) ([]byte, error)
 	// Close terminates the session.
 	Close() error
+}
+
+// SCPDownloader is an optional interface that sessions can implement to
+// support downloading configuration files via the SCP protocol.
+type SCPDownloader interface {
+	SCPDownload(ctx context.Context, remotePath string) ([]byte, error)
 }
 
 // NewSession returns an SSHSession or TelnetSession based on the first matching

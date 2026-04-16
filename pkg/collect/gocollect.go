@@ -41,6 +41,9 @@ func (c *GoCollector) Run(ctx context.Context) (Result, error) {
 	if c.Timeout == 0 {
 		c.Timeout = 30 * time.Second
 	}
+	if c.Spec.Timeout > 0 {
+		c.Timeout = c.Spec.Timeout
+	}
 	outPath := filepath.Join(c.OutDir, c.Device.Hostname)
 	if err := CollectDevice(ctx, c.Device.Hostname, c.Creds, c.Spec, c.FilterOpts, outPath, c.Timeout); err != nil {
 		return Result{
@@ -85,11 +88,19 @@ func CollectDevice(ctx context.Context, hostname string, creds config.Credential
 	}
 	defer session.Close()
 
-	commandList := make([]string, 0, len(spec.Commands))
-	for _, cmd := range spec.Commands {
-		commandList = append(commandList, cmd.CLI)
+	var allOutput []byte
+
+	// If the device supports SCP-based config download, use that for the
+	// configuration file and only run SSH commands for metadata collection.
+	if opts.SCPConfigFile != "" {
+		allOutput, err = collectSCPAndSSH(ctx, session, opts, spec, hostname)
+	} else {
+		commandList := make([]string, 0, len(spec.Commands))
+		for _, cmd := range spec.Commands {
+			commandList = append(commandList, cmd.CLI)
+		}
+		allOutput, err = collectOutput(ctx, session, commandList, hostname)
 	}
-	allOutput, err := collectOutput(ctx, session, commandList, hostname)
 	if err != nil {
 		return fmt.Errorf("collect %s: %w", hostname, err)
 	}
@@ -129,8 +140,78 @@ func collectOutput(ctx context.Context, session connect.Session, commands []stri
 			log.Printf("command %q on %s: %v", cmd, hostname, err)
 			continue
 		}
+		// Prepend command echo so parsers can detect section boundaries.
+		// RunCommand strips the echo, so we reinject it here.
+		allOutput = append(allOutput, []byte(cmd+"\n")...)
 		allOutput = append(allOutput, output...)
 		allOutput = append(allOutput, '\n')
 	}
 	return allOutput, nil
+}
+
+// collectSCPAndSSH downloads the configuration via SCP and collects metadata
+// via interactive SSH commands. This is used for devices like FortiGate where
+// "show full-configuration" over SSH is unreliable due to paging and size.
+// If SCP download fails (e.g., SCP not enabled on device), it falls back to
+// running the config command via SSH.
+func collectSCPAndSSH(ctx context.Context, session connect.Session, opts connect.DeviceOpts, spec devicetype.DeviceSpec, hostname string) ([]byte, error) {
+	var allOutput []byte
+
+	// Collect config commands for potential fallback via SSH
+	var configCmds []devicetype.Command
+
+	// Run SSH commands for metadata collection (skip config-download commands)
+	for _, cmd := range spec.Commands {
+		if isConfigCommand(cmd) {
+			configCmds = append(configCmds, cmd)
+			continue
+		}
+		output, err := session.RunCommand(ctx, cmd.CLI)
+		if err != nil {
+			log.Printf("command %q on %s: %v", cmd.CLI, hostname, err)
+			continue
+		}
+		allOutput = append(allOutput, []byte(cmd.CLI+"\n")...)
+		allOutput = append(allOutput, output...)
+		allOutput = append(allOutput, '\n')
+	}
+
+	// Try SCP download first
+	if downloader, ok := session.(connect.SCPDownloader); ok {
+		configData, err := downloader.SCPDownload(ctx, opts.SCPConfigFile)
+		if err == nil {
+			// SCP succeeded — inject command echo for parser section detection
+			allOutput = append(allOutput, []byte("show full-configuration\n")...)
+			allOutput = append(allOutput, configData...)
+			allOutput = append(allOutput, '\n')
+			return allOutput, nil
+		}
+		// SCP failed — log and fall back to SSH
+		log.Printf("scp download %s on %s: %v — falling back to SSH", opts.SCPConfigFile, hostname, err)
+	}
+
+	// Fallback: run config commands via SSH
+	for _, cmd := range configCmds {
+		output, err := session.RunCommand(ctx, cmd.CLI)
+		if err != nil {
+			log.Printf("command %q on %s: %v", cmd.CLI, hostname, err)
+			continue
+		}
+		allOutput = append(allOutput, []byte(cmd.CLI+"\n")...)
+		allOutput = append(allOutput, output...)
+		allOutput = append(allOutput, '\n')
+	}
+
+	return allOutput, nil
+}
+
+// isConfigCommand returns true if the command is a configuration-download command
+// (one that would be replaced by SCP download when available).
+func isConfigCommand(cmd devicetype.Command) bool {
+	handler := strings.ToUpper(cmd.Handler)
+	cli := strings.ToLower(cmd.CLI)
+	return strings.Contains(handler, "GETCONF") ||
+		strings.Contains(handler, "SHOWCONF") ||
+		strings.Contains(cli, "show full-configuration") ||
+		strings.Contains(cli, "show configuration")
 }

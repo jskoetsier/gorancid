@@ -15,7 +15,7 @@ import (
 	"gorancid/pkg/parse"
 )
 
-const version = "0.3.6"
+const version = "0.4.0"
 
 func main() {
 	var (
@@ -88,8 +88,13 @@ func main() {
 		outFile = hostname + ".new"
 	}
 
+	timeout := 30 * time.Second
+	if spec.Timeout > 0 {
+		timeout = spec.Timeout
+	}
+
 	ctx := context.Background()
-	if err := collect.CollectDevice(ctx, hostname, creds, spec, filterOpts, outFile, 30*time.Second); err != nil {
+	if err := collect.CollectDevice(ctx, hostname, creds, spec, filterOpts, outFile, timeout); err != nil {
 		log.Fatalf("collect %s: %v", hostname, err)
 	}
 }
