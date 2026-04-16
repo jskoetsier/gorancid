@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.1] - 2026-04-16
+
+### Fixed
+
+- **pkg/connect**: `readUntilPrompt` could hang forever on devices that accepted the SSH connection but never emitted a matching prompt (e.g., certain Cisco routers, load balancers with non-standard CLI, or SSL-VPN appliances). The underlying `ssh.Session` stdout does not honour `SetReadDeadline`, so the plain blocking `Read` bypassed both the provided timeout and the ctx cancellation. `Read` now runs on a short-lived goroutine gated by a `select` on ctx/timeout/result, so `ErrTimeout` is returned after the configured window and the stuck worker slot is released. Symptom on live runs: `control-rancid` stalled at ~90 devices with leaked SSH session goroutines; after the fix the same 261-device `observium` group completes to 243 successful collects with bounded error paths.
+
+### Added
+
+- **pkg/connect**: Legacy CBC cipher support (`aes128-cbc`, `aes192-cbc`, `aes256-cbc`, `3des-cbc`) alongside the modern GCM/CTR/ChaCha20 ciphers. Required for older Cisco IOS devices that only offer CBC ciphers in their SSH key exchange (observed symptom: `no common algorithm for client to server cipher`).
+
 ## [0.4.0] - 2026-04-16
 
 ### Added

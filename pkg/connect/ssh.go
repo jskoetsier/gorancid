@@ -49,8 +49,10 @@ func (s *SSHSession) Connect(ctx context.Context) error {
 	}
 	addr := fmt.Sprintf("%s:%d", s.Host, s.Port)
 
-	// Build SSH config — include legacy key exchange algorithms for older
-	// network devices that only support diffie-hellman-group1-sha1 etc.
+	// Build SSH config — include legacy key exchange algorithms and CBC
+	// ciphers for older network devices (e.g., Cisco IOS on aging hardware)
+	// that don't support modern crypto. This is a parity requirement with
+	// stock RANCID which uses an unrestricted OpenSSH client.
 	sshConfig := &ssh.ClientConfig{
 		User:            s.Creds.Username,
 		Auth:            sshAuthMethods(s.Creds),
@@ -68,6 +70,18 @@ func (s *SSHSession) Connect(ctx context.Context) error {
 				"diffie-hellman-group14-sha1",
 				"diffie-hellman-group-exchange-sha1",
 				"diffie-hellman-group1-sha1",
+			},
+			Ciphers: []string{
+				"aes128-gcm@openssh.com",
+				"aes256-gcm@openssh.com",
+				"chacha20-poly1305@openssh.com",
+				"aes128-ctr",
+				"aes192-ctr",
+				"aes256-ctr",
+				"aes128-cbc",
+				"aes192-cbc",
+				"aes256-cbc",
+				"3des-cbc",
 			},
 		},
 	}
@@ -365,48 +379,72 @@ var rePagerPrompt = regexp.MustCompile(`--More--| --More-- `)
 
 // readUntilPrompt reads from the session stdout until the prompt pattern matches.
 // When a pager prompt (like --More--) is detected, it sends a space to continue output.
+//
+// The underlying ssh.Session stdout is a backpressure-bound pipe that does NOT
+// honour SetReadDeadline, so a plain blocking Read on a silent remote will hang
+// forever. To guarantee the call respects both ctx cancellation and the provided
+// timeout, the blocking read runs in a short-lived goroutine and is gated via
+// select.
 func (s *SSHSession) readUntilPrompt(ctx context.Context, buf []byte, timeout time.Duration) ([]byte, error) {
 	deadline := time.Now().Add(timeout)
 	var accumulated []byte
 
+	type readResult struct {
+		n   int
+		err error
+	}
+
 	for {
-		select {
-		case <-ctx.Done():
-			return accumulated, ctx.Err()
-		default:
-		}
-		if time.Now().After(deadline) {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
 			return accumulated, ErrTimeout
 		}
 
-		n, err := s.stdout.Read(buf)
-		if n > 0 {
-			accumulated = append(accumulated, buf[:n]...)
+		// Kick a single blocking Read on a goroutine so we can multiplex with
+		// ctx + deadline. The goroutine may outlive this function when the
+		// read is hung (remote never sends) and the session later gets closed,
+		// at which point the read returns with an error and the goroutine
+		// exits. The allocated slice is sized for a single chunk to bound the
+		// worst-case leak if the session is never closed.
+		tmp := make([]byte, len(buf))
+		ch := make(chan readResult, 1)
+		go func() {
+			n, err := s.stdout.Read(tmp)
+			ch <- readResult{n: n, err: err}
+		}()
+
+		var res readResult
+		select {
+		case <-ctx.Done():
+			return accumulated, ctx.Err()
+		case <-time.After(remaining):
+			return accumulated, ErrTimeout
+		case res = <-ch:
+		}
+
+		if res.n > 0 {
+			accumulated = append(accumulated, tmp[:res.n]...)
 
 			// Check for pager prompts and send space to continue
 			cleaned := s.cleanANSI(accumulated)
 			if rePagerPrompt.Match(cleaned) {
-				// Send space to page through the output
 				fmt.Fprint(s.stdin, " ")
-				// Remove the pager prompt from accumulated output
 				accumulated = rePagerPrompt.ReplaceAll(accumulated, nil)
 				continue
 			}
 
-			// Check for prompt
 			if s.prompt.Match(cleaned) {
 				return accumulated, nil
 			}
 		}
-		if err != nil && err != io.EOF {
-			// Check for timeout — just continue reading
-			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+		if res.err != nil {
+			if netErr, ok := res.err.(net.Error); ok && netErr.Timeout() {
 				continue
 			}
-			if err == io.EOF {
+			if res.err == io.EOF {
 				return accumulated, nil
 			}
-			return accumulated, err
+			return accumulated, res.err
 		}
 	}
 }
