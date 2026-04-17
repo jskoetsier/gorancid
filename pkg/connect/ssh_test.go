@@ -25,14 +25,14 @@ func TestSSHSessionClose(t *testing.T) {
 }
 
 func TestNewSessionRequiresNative(t *testing.T) {
-	_, err := NewSession("sw-01", 22, config.Credentials{}, DeviceOpts{}, "clogin", false)
+	_, err := NewSession("sw-01", 22, config.Credentials{}, DeviceOpts{}, false)
 	if !errors.Is(err, ErrNoNativeTransport) {
 		t.Fatalf("expected ErrNoNativeTransport when preferNative=false, got %v", err)
 	}
 }
 
 func TestNewSessionSSH(t *testing.T) {
-	s, err := NewSession("sw-01", 22, config.Credentials{}, DeviceOpts{}, "clogin", true)
+	s, err := NewSession("sw-01", 22, config.Credentials{}, DeviceOpts{}, true)
 	if err != nil {
 		t.Fatalf("NewSession: %v", err)
 	}
@@ -42,7 +42,7 @@ func TestNewSessionSSH(t *testing.T) {
 }
 
 func TestNewSessionTelnet(t *testing.T) {
-	s, err := NewSession("sw-01", 22, config.Credentials{Methods: []string{"telnet"}}, DeviceOpts{}, "clogin", true)
+	s, err := NewSession("sw-01", 22, config.Credentials{Methods: []string{"telnet"}}, DeviceOpts{}, true)
 	if err != nil {
 		t.Fatalf("NewSession: %v", err)
 	}
@@ -52,7 +52,7 @@ func TestNewSessionTelnet(t *testing.T) {
 }
 
 func TestNewSessionPrefersFirstMethod(t *testing.T) {
-	s, err := NewSession("sw-01", 22, config.Credentials{Methods: []string{"telnet", "ssh"}}, DeviceOpts{}, "clogin", true)
+	s, err := NewSession("sw-01", 22, config.Credentials{Methods: []string{"telnet", "ssh"}}, DeviceOpts{}, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +62,7 @@ func TestNewSessionPrefersFirstMethod(t *testing.T) {
 }
 
 func TestNewSessionErrorWhenNoTransportMethod(t *testing.T) {
-	_, err := NewSession("sw-01", 22, config.Credentials{Methods: []string{"rsh"}}, DeviceOpts{}, "clogin", true)
+	_, err := NewSession("sw-01", 22, config.Credentials{Methods: []string{"rsh"}}, DeviceOpts{}, true)
 	if !errors.Is(err, ErrNoNativeTransport) {
 		t.Fatalf("expected ErrNoNativeTransport, got %v", err)
 	}

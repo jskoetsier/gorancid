@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -25,7 +24,7 @@ import (
 	_ "gorancid/pkg/parse/nxos"
 )
 
-const version = "0.4.1"
+const version = "0.4.2"
 
 func main() {
 	var (
@@ -110,32 +109,14 @@ func main() {
 
 	timeout := time.Duration(*timeoutSec) * time.Second
 	commands := splitCommands(*commandStr)
-	if canUseNative(spec.Type, creds.Methods) {
-		kind, port, _ := firstNativeTransport(creds.Methods)
-		fmt.Fprintf(os.Stderr, "using native %s (port %d): type=%s host=%s\n", kind, port, spec.Type, hostname)
-		if err := runNative(context.Background(), hostname, spec.Type, creds, commands, timeout, *noEnable, *autoEnable, *interactive || len(commands) == 0); err != nil {
-			log.Fatalf("clogin: %v", err)
-		}
-		return
-	}
 
-	legacyScript := resolveLegacyLoginScript(spec)
-	fmt.Fprintf(os.Stderr, "falling back to legacy login script: script=%s type=%s host=%s\n", legacyScript, spec.Type, hostname)
-	if err := runLegacy(
-		context.Background(),
-		legacyScript,
-		hostname,
-		cloginPath,
-		commands,
-		*timeoutSec,
-		*noEnable,
-		*autoEnable,
-		*interactive,
-		*username,
-		*password,
-		*enablePwd,
-	); err != nil {
-		log.Fatalf("clogin fallback: %v", err)
+	if !canUseNative(spec.Type, creds.Methods) {
+		log.Fatalf("clogin: no native transport available for type %q on %s (check .cloginrc methods and device type parser registration)", spec.Type, hostname)
+	}
+	kind, port, _ := firstNativeTransport(creds.Methods)
+	fmt.Fprintf(os.Stderr, "using native %s (port %d): type=%s host=%s\n", kind, port, spec.Type, hostname)
+	if err := runNative(context.Background(), hostname, spec.Type, creds, commands, timeout, *noEnable, *autoEnable, *interactive || len(commands) == 0); err != nil {
+		log.Fatalf("clogin: %v", err)
 	}
 }
 
@@ -252,7 +233,7 @@ func firstNativeTransport(methods []string) (kind string, port int, ok bool) {
 
 func runNative(ctx context.Context, hostname, deviceType string, creds config.Credentials, commands []string, timeout time.Duration, noEnable, autoEnable, interactive bool) error {
 	opts := deviceOpts(deviceType, creds, timeout, noEnable, autoEnable)
-	session, err := connect.NewSession(hostname, 22, creds, opts, "", true)
+	session, err := connect.NewSession(hostname, 22, creds, opts, true)
 	if err != nil {
 		return err
 	}
@@ -317,90 +298,3 @@ func wantsEnable(deviceType string) bool {
 	}
 }
 
-func resolveLegacyLoginScript(spec devicetype.DeviceSpec) string {
-	if spec.LoginScript != "" {
-		return spec.LoginScript
-	}
-	for _, module := range spec.Modules {
-		switch strings.ToLower(module) {
-		case "fortigate":
-			return "fnlogin"
-		case "junos":
-			return "jlogin"
-		case "ios", "iosxr", "nxos":
-			return "clogin"
-		}
-	}
-	switch {
-	case strings.HasPrefix(strings.ToLower(spec.Type), "forti"):
-		return "fnlogin"
-	case strings.HasPrefix(strings.ToLower(spec.Type), "jun"):
-		return "jlogin"
-	default:
-		return "clogin"
-	}
-}
-
-func runLegacy(ctx context.Context, loginScript, hostname, cloginrc string, commands []string, timeoutSec int, noEnable, autoEnable, interactive bool, username, password, enablePwd string) error {
-	bin := loginScript
-	if bin == "" {
-		bin = "clogin"
-	}
-
-	args := []string{}
-	if cloginrc != "" {
-		args = append(args, "-f", cloginrc)
-	}
-	if username != "" && scriptSupports(bin, "username") {
-		args = append(args, "-u", username)
-	}
-	if password != "" && scriptSupports(bin, "password") {
-		args = append(args, "-p", password)
-	}
-	if enablePwd != "" && scriptSupports(bin, "enable-password") {
-		args = append(args, "-e", enablePwd)
-	}
-	if timeoutSec > 0 {
-		args = append(args, "-t", strconv.Itoa(timeoutSec))
-	}
-	if noEnable && scriptSupports(bin, "noenable") {
-		args = append(args, "-noenable")
-	}
-	if autoEnable && scriptSupports(bin, "autoenable") {
-		args = append(args, "-autoenable")
-	}
-	if len(commands) > 0 {
-		args = append(args, "-c", strings.Join(commands, "; "))
-	}
-	if interactive && scriptSupports(bin, "interactive") {
-		args = append(args, "-i")
-	}
-	args = append(args, hostname)
-
-	cmd := exec.CommandContext(ctx, bin, args...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}
-
-func scriptSupports(script, capability string) bool {
-	switch strings.ToLower(script) {
-	case "clogin":
-		return true
-	case "fnlogin", "jlogin":
-		switch capability {
-		case "username", "password":
-			return true
-		default:
-			return false
-		}
-	default:
-		switch capability {
-		case "username", "password":
-			return true
-		default:
-			return false
-		}
-	}
-}

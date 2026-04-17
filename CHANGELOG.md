@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.2] - 2026-04-17
+
+### Changed
+
+- **cmd/clogin**: removed legacy login-script fallback (`clogin`/`jlogin`/`fnlogin` Tcl subprocess path); devices without a native ssh or telnet method now fail with a clear error instead of shelling out to the Perl login scripts — the last Expect/Tcl dependency is gone
+- **pkg/devicetype**: removed `LoginScript` field from `DeviceSpec`; the `login` directive in `rancid.types.{base,conf}` is now silently ignored
+- **pkg/connect**: removed unused `loginScript string` parameter from `NewSession` signature
+- **pkg/connect**: removed deprecated `ErrNoNativeSSH` alias (use `ErrNoNativeTransport`)
+- **release**: bump embedded `-V` / version strings to `0.4.2` for all binaries; Phase 4 marked complete in ROADMAP
+
 ## [0.4.1] - 2026-04-16
 
 ### Fixed

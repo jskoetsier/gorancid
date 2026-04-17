@@ -79,7 +79,7 @@ func CollectDevice(ctx context.Context, hostname string, creds config.Credential
 		preferNative = true
 	}
 
-	session, err := connect.NewSession(hostname, 22, creds, opts, spec.LoginScript, preferNative)
+	session, err := connect.NewSession(hostname, 22, creds, opts, preferNative)
 	if err != nil {
 		return err
 	}

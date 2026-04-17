@@ -54,7 +54,7 @@ type SCPDownloader interface {
 
 // NewSession returns an SSHSession or TelnetSession based on the first matching
 // method in creds.Methods (in order). Empty methods defaults to SSH on port 22.
-func NewSession(host string, defaultSSHPort int, creds config.Credentials, opts DeviceOpts, _ string, preferNative bool) (Session, error) {
+func NewSession(host string, defaultSSHPort int, creds config.Credentials, opts DeviceOpts, preferNative bool) (Session, error) {
 	if !preferNative {
 		return nil, ErrNoNativeTransport
 	}

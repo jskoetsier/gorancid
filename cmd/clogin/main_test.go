@@ -117,29 +117,3 @@ func TestEnsureParserCoverage(t *testing.T) {
 	}
 }
 
-func TestResolveLegacyLoginScript(t *testing.T) {
-	if got := resolveLegacyLoginScript(devicetype.DeviceSpec{Type: "fortiscp"}); got != "fnlogin" {
-		t.Fatalf("fortiscp legacy script = %q, want fnlogin", got)
-	}
-	if got := resolveLegacyLoginScript(devicetype.DeviceSpec{Type: "juniper-srx"}); got != "jlogin" {
-		t.Fatalf("juniper-srx legacy script = %q, want jlogin", got)
-	}
-	if got := resolveLegacyLoginScript(devicetype.DeviceSpec{Type: "cisco"}); got != "clogin" {
-		t.Fatalf("cisco legacy script = %q, want clogin", got)
-	}
-}
-
-func TestScriptSupports(t *testing.T) {
-	if !scriptSupports("clogin", "enable-password") {
-		t.Fatal("clogin should support enable-password")
-	}
-	if scriptSupports("fnlogin", "enable-password") {
-		t.Fatal("fnlogin should not support enable-password")
-	}
-	if scriptSupports("fnlogin", "interactive") {
-		t.Fatal("fnlogin should not support interactive flag")
-	}
-	if !scriptSupports("fnlogin", "password") {
-		t.Fatal("fnlogin should support password override")
-	}
-}

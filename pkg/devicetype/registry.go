@@ -16,14 +16,13 @@ type Command struct {
 
 // DeviceSpec describes how to collect from a specific device type.
 type DeviceSpec struct {
-	Type        string
-	Alias       string    // if non-empty, this type redirects to another
-	Script      string    // e.g. "rancid -t ios"
-	LoginScript string    // e.g. "clogin"
-	Modules     []string  // module names (informational in Phase 1)
-	InLoop      string    // inloop function name
-	Commands    []Command // ordered list of commands to run
-	Timeout     time.Duration
+	Type     string
+	Alias    string    // if non-empty, this type redirects to another
+	Script   string    // e.g. "rancid -t ios"
+	Modules  []string  // module names (informational in Phase 1)
+	InLoop   string    // inloop function name
+	Commands []Command // ordered list of commands to run
+	Timeout  time.Duration
 }
 
 // Load reads rancid.types.base then rancid.types.conf.
@@ -100,7 +99,7 @@ func loadFile(path string, specs map[string]DeviceSpec, skip map[string]bool) er
 		case "script":
 			spec.Script = value
 		case "login":
-			spec.LoginScript = value
+			// login directive (legacy Expect script selection) is no longer used
 		case "module":
 			spec.Modules = append(spec.Modules, value)
 		case "inloop":

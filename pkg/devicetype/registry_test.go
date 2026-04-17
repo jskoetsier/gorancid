@@ -20,9 +20,6 @@ func TestLoad(t *testing.T) {
 	if !ok {
 		t.Fatal("ios type not found")
 	}
-	if ios.LoginScript != "clogin" {
-		t.Errorf("ios.LoginScript = %q, want clogin", ios.LoginScript)
-	}
 	if len(ios.Commands) != 2 {
 		t.Errorf("ios.Commands count = %d, want 2", len(ios.Commands))
 	}
@@ -31,12 +28,9 @@ func TestLoad(t *testing.T) {
 	}
 
 	// custom type only in conf
-	myios, ok := specs["myios"]
+	_, ok = specs["myios"]
 	if !ok {
 		t.Fatal("myios type not found")
-	}
-	if myios.LoginScript != "clogin" {
-		t.Errorf("myios.LoginScript = %q, want clogin", myios.LoginScript)
 	}
 }
 
@@ -49,12 +43,9 @@ func TestLookupAlias(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	spec, ok := devicetype.Lookup(specs, "cat5k")
+	_, ok := devicetype.Lookup(specs, "cat5k")
 	if !ok {
 		t.Fatal("cat5k alias not resolved")
-	}
-	if spec.LoginScript != "clogin" {
-		t.Errorf("resolved alias LoginScript = %q, want clogin", spec.LoginScript)
 	}
 }
 

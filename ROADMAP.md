@@ -36,15 +36,13 @@ Complete Go parser coverage for all device types from `rancid.types.{base,conf}`
 - [x] `cmd/rancid` now uses Go parsing across the full `rancid.types` surface
 - [x] Expect remains transport-only where native SSH collection is not yet appropriate
 
-## Phase 4: Remove Expect Dependency
+## Phase 4: Remove Expect Dependency — COMPLETE (v0.4.0)
 
-All device types have Go parser coverage. Remove Expect/Tcl transport dependency entirely.
-
-Current status after `v0.3.4`: in-process `GoCollector` over **SSH or Telnet** (no Expect transport). `cmd/rancid-ui` ships a read-only local UI (fleet, config with Prism highlighting, last git diff per device). Interactive `clogin` still supports legacy login scripts as a fallback. Remaining Phase 4 work: drop legacy `clogin` fallback where possible and remove CDN dependency for a fully offline UI.
+All device types have Go parser coverage. Expect/Tcl transport dependency fully removed.
 
 - [x] Remove `FallbackCollector` and Expect subprocess path (orchestration + `pkg/connect` collection transport)
-- [ ] Remove legacy login-script transport dependency (`clogin` interactive fallback for edge cases)
-- [ ] Standalone Go binary — no external runtime dependencies (UI loads Prism from cdnjs when viewing configs/diffs)
+- [x] Remove legacy login-script transport dependency (`clogin` interactive fallback for edge cases)
+- [x] Standalone Go binary — no external runtime dependencies (UI uses embedded templates, no CDN)
 - [x] Web UI: config browser with syntax highlighting (`rancid-ui`)
 - [x] Web UI: diff viewer per device per run (`rancid-ui` — last commit touching `configs/<host>`)
 - [x] Web UI: device fleet status overview (`rancid-ui` — all `router.db` rows)

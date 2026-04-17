@@ -145,7 +145,7 @@ func TestEmptyInput(t *testing.T) {
 }
 
 func TestNewSessionNXOS(t *testing.T) {
-	s, err := connect.NewSession("sw-01", 22, config.Credentials{}, connect.DeviceOpts{DeviceType: "nxos"}, "clogin", true)
+	s, err := connect.NewSession("sw-01", 22, config.Credentials{}, connect.DeviceOpts{DeviceType: "nxos"}, true)
 	if err != nil {
 		t.Fatal(err)
 	}
