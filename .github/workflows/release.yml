@@ -1,0 +1,86 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Extract version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build binaries (amd64 + arm64)
+        run: |
+          BINARIES="clogin rancid rancid-cvs control-rancid rancid-run rancid-ui"
+          for ARCH in amd64 arm64; do
+            mkdir -p bin/linux-${ARCH}
+            for BIN in $BINARIES; do
+              GOOS=linux GOARCH=${ARCH} go build \
+                -ldflags="-s -w" \
+                -o bin/linux-${ARCH}/${BIN} \
+                ./cmd/${BIN}/
+            done
+          done
+
+      - name: Install nfpm
+        run: |
+          curl -sSfL https://github.com/goreleaser/nfpm/releases/download/v2.41.4/nfpm_2.41.4_Linux_x86_64.tar.gz \
+            | tar -xz -C /usr/local/bin nfpm
+
+      - name: Build packages
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          REPO: ${{ github.repository }}
+        run: |
+          URL="https://github.com/${REPO}"
+          mkdir -p dist
+
+          for ARCH in amd64 arm64; do
+            sed \
+              -e "s|@ARCH@|${ARCH}|g" \
+              -e "s|@VERSION@|${VERSION}|g" \
+              -e "s|@PROJECT_URL@|${URL}|g" \
+              packaging/nfpm.yaml.tmpl > /tmp/nfpm-${ARCH}.yaml
+
+            nfpm package -f /tmp/nfpm-${ARCH}.yaml -p deb -t dist/
+            nfpm package -f /tmp/nfpm-${ARCH}.yaml -p rpm -t dist/
+            nfpm package -f /tmp/nfpm-${ARCH}.yaml -p apk -t dist/
+          done
+
+      - name: Build binary tarballs
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          for ARCH in amd64 arm64; do
+            tar -czf dist/gorancid_${VERSION}_linux_${ARCH}.tar.gz \
+              -C bin/linux-${ARCH} .
+          done
+
+      - name: Extract changelog entry
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" \
+            CHANGELOG.md > /tmp/release-notes.md
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: /tmp/release-notes.md
+          files: dist/*
