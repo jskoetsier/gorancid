@@ -24,7 +24,7 @@ import (
 	_ "gorancid/pkg/parse/nxos"
 )
 
-const version = "0.4.2"
+const version = "0.4.3"
 
 func main() {
 	var (
@@ -115,7 +115,7 @@ func main() {
 	}
 	kind, port, _ := firstNativeTransport(creds.Methods)
 	fmt.Fprintf(os.Stderr, "using native %s (port %d): type=%s host=%s\n", kind, port, spec.Type, hostname)
-	if err := runNative(context.Background(), hostname, spec.Type, creds, commands, timeout, *noEnable, *autoEnable, *interactive || len(commands) == 0); err != nil {
+	if err := runNative(context.Background(), hostname, port, spec.Type, creds, commands, timeout, *noEnable, *autoEnable, *interactive || len(commands) == 0); err != nil {
 		log.Fatalf("clogin: %v", err)
 	}
 }
@@ -231,9 +231,9 @@ func firstNativeTransport(methods []string) (kind string, port int, ok bool) {
 	return "", 0, false
 }
 
-func runNative(ctx context.Context, hostname, deviceType string, creds config.Credentials, commands []string, timeout time.Duration, noEnable, autoEnable, interactive bool) error {
+func runNative(ctx context.Context, hostname string, port int, deviceType string, creds config.Credentials, commands []string, timeout time.Duration, noEnable, autoEnable, interactive bool) error {
 	opts := deviceOpts(deviceType, creds, timeout, noEnable, autoEnable)
-	session, err := connect.NewSession(hostname, 22, creds, opts, true)
+	session, err := connect.NewSession(hostname, port, creds, opts, true)
 	if err != nil {
 		return err
 	}

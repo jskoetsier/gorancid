@@ -267,7 +267,7 @@ func (s *TelnetSession) Interact(ctx context.Context, in io.Reader, out io.Write
 		restore = func() error { return restoreTerminal(int(inFile.Fd()), state) }
 		defer restore()
 	}
-	waitCh := make(chan error, 1)
+	waitCh := make(chan error, 2)
 	go func() {
 		_, err := io.Copy(out, s.r)
 		waitCh <- err

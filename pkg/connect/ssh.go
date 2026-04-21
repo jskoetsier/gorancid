@@ -383,35 +383,51 @@ var rePagerPrompt = regexp.MustCompile(`--More--| --More-- `)
 // The underlying ssh.Session stdout is a backpressure-bound pipe that does NOT
 // honour SetReadDeadline, so a plain blocking Read on a silent remote will hang
 // forever. To guarantee the call respects both ctx cancellation and the provided
-// timeout, the blocking read runs in a short-lived goroutine and is gated via
-// select.
+// timeout, the blocking read runs in a dedicated goroutine and is gated via
+// select. Only one goroutine is created per call, avoiding the leak of spawning
+// a new goroutine on every loop iteration.
 func (s *SSHSession) readUntilPrompt(ctx context.Context, buf []byte, timeout time.Duration) ([]byte, error) {
 	deadline := time.Now().Add(timeout)
 	var accumulated []byte
 
 	type readResult struct {
-		n   int
-		err error
+		n    int
+		data []byte
+		err  error
 	}
+
+	// Start a single pump goroutine. It exits when the underlying pipe
+	// closes (session.Close) or ctx is cancelled.
+	ch := make(chan readResult, 1)
+	go func() {
+		for {
+			n, err := s.stdout.Read(buf)
+			if n > 0 {
+				// Copy so buf can be reused on the next read.
+				data := append([]byte(nil), buf[:n]...)
+				select {
+				case ch <- readResult{n: n, data: data, err: err}:
+				case <-ctx.Done():
+					return
+				}
+			} else {
+				select {
+				case ch <- readResult{err: err}:
+				case <-ctx.Done():
+					return
+				}
+				if err != nil {
+					return
+				}
+			}
+		}
+	}()
 
 	for {
 		remaining := time.Until(deadline)
 		if remaining <= 0 {
 			return accumulated, ErrTimeout
 		}
-
-		// Kick a single blocking Read on a goroutine so we can multiplex with
-		// ctx + deadline. The goroutine may outlive this function when the
-		// read is hung (remote never sends) and the session later gets closed,
-		// at which point the read returns with an error and the goroutine
-		// exits. The allocated slice is sized for a single chunk to bound the
-		// worst-case leak if the session is never closed.
-		tmp := make([]byte, len(buf))
-		ch := make(chan readResult, 1)
-		go func() {
-			n, err := s.stdout.Read(tmp)
-			ch <- readResult{n: n, err: err}
-		}()
 
 		var res readResult
 		select {
@@ -423,7 +439,7 @@ func (s *SSHSession) readUntilPrompt(ctx context.Context, buf []byte, timeout ti
 		}
 
 		if res.n > 0 {
-			accumulated = append(accumulated, tmp[:res.n]...)
+			accumulated = append(accumulated, res.data...)
 
 			// Check for pager prompts and send space to continue
 			cleaned := s.cleanANSI(accumulated)

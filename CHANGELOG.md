@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.3] - 2026-04-21
+
+### Fixed
+
+- **cmd/clogin**: native transport now honours custom ports parsed from `.cloginrc` methods (e.g. `ssh:2222`, `telnet:2323`). Previously `firstNativeTransport` correctly extracted the port but `runNative` always dialled port 22, breaking non-standard SSH ports and all Telnet connections.
+- **pkg/connect**: `readUntilPrompt` no longer leaks a goroutine on every loop iteration. A single pump goroutine is started per call, eliminating unbounded accumulation when the remote hangs and the session is closed later.
+- **pkg/connect**: `TelnetSession.Interact` no longer leaks the second goroutine when `io.Copy(out, s.r)` returns first. The `waitCh` buffer was increased so both goroutines can exit without blocking.
+
 ## [0.4.2] - 2026-04-17
 
 ### Changed
