@@ -40,7 +40,7 @@ jobs:
 
       - name: Install nfpm
         run: |
-          curl -sSfL https://github.com/goreleaser/nfpm/releases/download/v2.41.4/nfpm_2.41.4_Linux_x86_64.tar.gz \
+          curl -sSfL https://github.com/goreleaser/nfpm/releases/download/v2.46.3/nfpm_2.46.3_Linux_x86_64.tar.gz \
             | tar -xz -C /usr/local/bin nfpm
 
       - name: Build packages
