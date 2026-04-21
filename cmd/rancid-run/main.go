@@ -10,9 +10,8 @@ import (
 	"time"
 
 	"gorancid/pkg/config"
+	"gorancid/pkg/version"
 )
-
-const version = "0.4.3"
 
 func main() {
 	var (
@@ -24,7 +23,7 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Printf("rancid-run %s\n", version)
+		fmt.Printf("rancid-run %s\n", version.Version)
 		os.Exit(0)
 	}
 

@@ -9,16 +9,15 @@ import (
 
 	"gorancid/pkg/config"
 	"gorancid/pkg/git"
+	"gorancid/pkg/version"
 )
-
-const version = "0.4.3"
 
 func main() {
 	showVersion := flag.Bool("V", false, "print version")
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Printf("rancid-cvs %s\n", version)
+		fmt.Printf("rancid-cvs %s\n", version.Version)
 		os.Exit(0)
 	}
 

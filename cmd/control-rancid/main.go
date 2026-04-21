@@ -17,9 +17,8 @@ import (
 	"gorancid/pkg/notify"
 	"gorancid/pkg/par"
 	"gorancid/pkg/parse"
+	"gorancid/pkg/version"
 )
-
-const version = "0.4.3"
 
 func main() {
 	var (
@@ -32,7 +31,7 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Printf("control-rancid %s\n", version)
+		fmt.Printf("control-rancid %s\n", version.Version)
 		os.Exit(0)
 	}
 	if flag.NArg() < 1 {
@@ -89,28 +88,17 @@ func main() {
 	var jobs []par.Job
 	var meta []jobMeta
 
-	for _, dev := range devices {
-		if dev.Status != "up" {
-			continue
-		}
-		if *onlyDevice != "" && dev.Hostname != *onlyDevice {
-			continue
-		}
-		spec, ok := devicetype.Lookup(typeSpecs, dev.Type)
-		if !ok {
-			log.Printf("warning: unknown device type %q for %s — skipping", dev.Type, dev.Hostname)
-			continue
-		}
-		var creds config.Credentials
-		if credStore != nil {
-			creds = credStore.Lookup(dev.Hostname)
-		}
-		d, s, c := dev, spec, creds // capture loop vars
-		filterOpts := parse.FilterOpts{
-			FilterPwds: int(cfg.FilterPwds),
-			FilterOsc:  int(cfg.FilterOsc),
-			NoCommStr:  cfg.NoCommStr,
-		}
+	selected, selSpecs, selCreds, skipped := selectDevices(devices, typeSpecs, credStore, *onlyDevice)
+	for _, h := range skipped {
+		log.Printf("warning: %s", h)
+	}
+	filterOpts := parse.FilterOpts{
+		FilterPwds: int(cfg.FilterPwds),
+		FilterOsc:  int(cfg.FilterOsc),
+		NoCommStr:  cfg.NoCommStr,
+	}
+	for i := range selected {
+		d, s, c := selected[i], selSpecs[i], selCreds[i]
 		gc := &collect.GoCollector{
 			Device:     d,
 			Spec:       s,
@@ -132,7 +120,7 @@ func main() {
 			}
 			return nil
 		})
-		meta = append(meta, jobMeta{dev.Hostname})
+		meta = append(meta, jobMeta{selected[i].Hostname})
 	}
 
 	if len(jobs) == 0 {
@@ -192,4 +180,42 @@ func main() {
 			log.Printf("notify: %v", err)
 		}
 	}
+}
+
+// selectDevices filters the router.db entries and returns the devices that should
+// be collected, along with their resolved specs, credentials, and a list of
+// skip-reason strings for logging.
+func selectDevices(
+	devices []config.Device,
+	typeSpecs map[string]devicetype.DeviceSpec,
+	credStore *config.CredStore,
+	onlyDevice string,
+) ([]config.Device, []devicetype.DeviceSpec, []config.Credentials, []string) {
+	var (
+		selected []config.Device
+		specs    []devicetype.DeviceSpec
+		creds    []config.Credentials
+		skipped  []string
+	)
+	for _, dev := range devices {
+		if dev.Status != "up" {
+			continue
+		}
+		if onlyDevice != "" && dev.Hostname != onlyDevice {
+			continue
+		}
+		spec, ok := devicetype.Lookup(typeSpecs, dev.Type)
+		if !ok {
+			skipped = append(skipped, fmt.Sprintf("unknown device type %q for %s — skipping", dev.Type, dev.Hostname))
+			continue
+		}
+		var c config.Credentials
+		if credStore != nil {
+			c = credStore.Lookup(dev.Hostname)
+		}
+		selected = append(selected, dev)
+		specs = append(specs, spec)
+		creds = append(creds, c)
+	}
+	return selected, specs, creds, skipped
 }

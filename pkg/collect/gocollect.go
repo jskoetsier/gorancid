@@ -137,8 +137,7 @@ func collectOutput(ctx context.Context, session connect.Session, commands []stri
 	for _, cmd := range commands {
 		output, err := session.RunCommand(ctx, cmd)
 		if err != nil {
-			log.Printf("command %q on %s: %v", cmd, hostname, err)
-			continue
+			return allOutput, fmt.Errorf("command %q on %s: %w", cmd, hostname, err)
 		}
 		// Prepend command echo so parsers can detect section boundaries.
 		// RunCommand strips the echo, so we reinject it here.
@@ -194,8 +193,7 @@ func collectSCPAndSSH(ctx context.Context, session connect.Session, opts connect
 	for _, cmd := range configCmds {
 		output, err := session.RunCommand(ctx, cmd.CLI)
 		if err != nil {
-			log.Printf("command %q on %s: %v", cmd.CLI, hostname, err)
-			continue
+			return allOutput, fmt.Errorf("command %q on %s: %w", cmd.CLI, hostname, err)
 		}
 		allOutput = append(allOutput, []byte(cmd.CLI+"\n")...)
 		allOutput = append(allOutput, output...)

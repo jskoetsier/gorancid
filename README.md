@@ -41,7 +41,7 @@ If neither appears (for example only `rsh`), collection fails with a clear error
 
 ## Current Status
 
-**v0.4.2** — Phase 4 complete. All collection runs entirely in-process over SSH or Telnet with no Expect or Tcl/Perl dependency remaining. Devices without a native transport method fail with a clear error. `rancid-ui` provides a local fleet/config/diff browser.
+**v0.4.4** — Phase 4 complete. All collection runs entirely in-process over SSH or Telnet with no Expect or Tcl/Perl dependency remaining. Devices without a native transport method fail with a clear error. `rancid-ui` provides a local fleet/config/diff browser.
 
 ## Building
 
@@ -98,6 +98,12 @@ pkg/
 ```
 
 All logic lives in `pkg/`. CLI binaries in `cmd/` are thin wrappers that call library functions.
+
+## Security Considerations
+
+- **SSH host keys are not verified.** Gorancid uses `InsecureIgnoreHostKey()` to match upstream RANCID behavior, which does not check host keys. If you require host-key verification, run gorancid from a host that already has the device keys in `~/.ssh/known_hosts` and use a wrapper that enforces `StrictHostKeyChecking`.
+- **Telnet is cleartext.** Credentials and configuration data travel unencrypted over the wire when using the `telnet` method. Use `ssh` wherever possible.
+- **`rancid-ui` has no authentication.** The read-only web UI binds to loopback (`127.0.0.1:8080`) by default. Do not expose it to untrusted networks without a reverse proxy that adds authentication.
 
 ## Contributing
 

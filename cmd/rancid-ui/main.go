@@ -16,12 +16,11 @@ import (
 
 	"gorancid/pkg/config"
 	"gorancid/pkg/git"
+	"gorancid/pkg/version"
 )
 
 //go:embed templates/*.html
 var templateFS embed.FS
-
-const version = "0.4.3"
 
 var hostPat = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]*$`)
 
@@ -34,7 +33,7 @@ func main() {
 	flag.Parse()
 
 	if *showVer {
-		fmt.Printf("rancid-ui %s\n", version)
+		fmt.Printf("rancid-ui %s\n", version.Version)
 		os.Exit(0)
 	}
 
@@ -69,7 +68,7 @@ func main() {
 	mux.Handle("GET /group/{group}/device/{host}/config", http.HandlerFunc(s.handleConfig))
 	mux.Handle("GET /group/{group}/device/{host}/diff", http.HandlerFunc(s.handleDiff))
 
-	log.Printf("rancid-ui %s listening on http://%s/ (rancid.conf=%s)", version, *listen, confPath)
+	log.Printf("rancid-ui %s listening on http://%s/ (rancid.conf=%s)", version.Version, *listen, confPath)
 	srv := &http.Server{
 		Addr:              *listen,
 		Handler:           withSecurityHeaders(mux),

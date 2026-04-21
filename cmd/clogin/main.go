@@ -16,6 +16,7 @@ import (
 	"gorancid/pkg/connect"
 	"gorancid/pkg/devicetype"
 	"gorancid/pkg/parse"
+	"gorancid/pkg/version"
 
 	_ "gorancid/pkg/parse/fortigate"
 	_ "gorancid/pkg/parse/ios"
@@ -23,8 +24,6 @@ import (
 	_ "gorancid/pkg/parse/junos"
 	_ "gorancid/pkg/parse/nxos"
 )
-
-const version = "0.4.3"
 
 func main() {
 	var (
@@ -47,7 +46,7 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Printf("clogin %s\n", version)
+		fmt.Printf("clogin %s\n", version.Version)
 		os.Exit(0)
 	}
 	if *showHelp || flag.NArg() != 1 {

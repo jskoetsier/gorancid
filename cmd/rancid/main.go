@@ -13,9 +13,8 @@ import (
 	"gorancid/pkg/config"
 	"gorancid/pkg/devicetype"
 	"gorancid/pkg/parse"
+	"gorancid/pkg/version"
 )
-
-const version = "0.4.3"
 
 func main() {
 	var (
@@ -26,7 +25,7 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Printf("gorancid %s\n", version)
+		fmt.Printf("gorancid %s\n", version.Version)
 		os.Exit(0)
 	}
 

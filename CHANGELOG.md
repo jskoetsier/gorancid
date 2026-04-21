@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.4] - 2026-04-21
+
+### Changed
+
+- **pkg/version**: single source of truth for release version (`pkg/version/version.go`). All six `cmd/*` binaries now import `version.Version` instead of duplicating the constant.
+- **pkg/collect**: `collectOutput` now returns an error when any command fails, preventing partial configs from being written silently.
+- **pkg/collect**: `collectSCPAndSSH` fallback SSH config commands now also return errors on failure.
+- **cmd/control-rancid**: extracted `selectDevices` filter logic into a testable pure function.
+
+### Added
+
+- **pkg/collect**: `gocollect_test.go` with table-driven tests for `isConfigCommand`, `collectOutput` (success, error, empty, bulk-runner paths).
+- **cmd/control-rancid**: `main_test.go` with table-driven tests for `selectDevices` (up/down filtering, unknown-type skipping, `onlyDevice` matching/missing, empty input).
+- **README.md**: "Security Considerations" section documenting unverified SSH host keys, cleartext telnet, and `rancid-ui` authentication limitations.
+
 ## [0.4.3] - 2026-04-21
 
 ### Fixed
