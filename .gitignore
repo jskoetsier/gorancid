@@ -1,0 +1,10 @@
+# Claude Code local settings (may contain tokens/secrets)
+.claude/settings.local.json
+bin/.claude/
+
+# Internal planning / roadmap (local only)
+ROADMAP.md
+
+# Build output
+bin/
+dist/

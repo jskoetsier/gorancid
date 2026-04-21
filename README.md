@@ -41,9 +41,7 @@ If neither appears (for example only `rsh`), collection fails with a clear error
 
 ## Current Status
 
-**Phase 3 complete (v0.3.0)** — all device types in `rancid.types.{base,conf}` now have Go parser coverage, using dedicated parsers for the core families and a generic Go parser for the remaining long tail.
-
-**Phase 4 in progress (v0.3.6)** — in-process collection over **SSH or Telnet** (no Expect for transport). `cmd/rancid-ui` provides a local fleet/config/diff browser. Interactive `clogin` still falls back to legacy login scripts when native transport is unavailable (for example unknown device types without `DeviceOpts`).
+**v0.4.2** — Phase 4 complete. All collection runs entirely in-process over SSH or Telnet with no Expect or Tcl/Perl dependency remaining. Devices without a native transport method fail with a clear error. `rancid-ui` provides a local fleet/config/diff browser.
 
 ## Building
 
@@ -101,6 +99,10 @@ pkg/
 
 All logic lives in `pkg/`. CLI binaries in `cmd/` are thin wrappers that call library functions.
 
+## Contributing
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## License
 
-GORANCID is licensed under the same terms as the upstream RANCID project.
+MIT — see [LICENSE](LICENSE).
