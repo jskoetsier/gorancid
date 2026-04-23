@@ -2,8 +2,9 @@
 .claude/settings.local.json
 bin/.claude/
 
-# Internal planning / roadmap (local only)
+# Internal planning / roadmap / docs (local only)
 ROADMAP.md
+docs/
 
 # Build output
 bin/
