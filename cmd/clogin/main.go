@@ -18,11 +18,13 @@ import (
 	"gorancid/pkg/parse"
 	"gorancid/pkg/version"
 
+	_ "gorancid/pkg/parse/force10"
 	_ "gorancid/pkg/parse/fortigate"
 	_ "gorancid/pkg/parse/ios"
 	_ "gorancid/pkg/parse/iosxr"
 	_ "gorancid/pkg/parse/junos"
 	_ "gorancid/pkg/parse/nxos"
+	_ "gorancid/pkg/parse/sros"
 )
 
 func main() {

@@ -64,6 +64,8 @@ func Load(path string) (Config, error) {
 		}
 		key := m[1]
 		val := strings.Trim(strings.TrimSpace(m[2]), `"'`)
+		// Expand $VAR and ${VAR} references using already-parsed keys.
+		val = os.Expand(val, func(k string) string { return env[k] })
 		env[key] = val
 	}
 	if err := scanner.Err(); err != nil {

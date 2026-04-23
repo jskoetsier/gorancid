@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.5] - 2026-04-23
+
+### Added
+
+- **pkg/parse/sros**: Nokia SR OS (TiMOS) parser for Classic CLI (`sros`) and MD-CLI (`sros-md`) variants. Handles `show system information`, `show chassis`, `show card state/detail`, `show debug`, `show bof`, and `admin display-config`. Extracts name/model/version/serial metadata; filters uptime, temperature, and fan-speed lines as volatile; supports password and SNMP community string filtering. Registered under aliases `sros-md`, `nokia`, and `timos`.
+- **pkg/parse/force10**: Dell Force10 / DNOS9 parser covering `show version`, `show bootvar`, `dir flash:`, `dir slot0:`, `show chassis`, `show system`, `show inventory`, `show vlan`, and `show running`. Extracts version/serial/model metadata; filters uptime and pager lines as volatile; applies password and SNMP community string filtering. Registered under aliases `force10` and `dell`.
+
+### Fixed
+
+- **pkg/config**: Variable references (`$VAR` / `${VAR}`) in `rancid.conf` values are now expanded using previously parsed keys. Fixes `LOGDIR=$BASEDIR/logs` and `CVSROOT=$BASEDIR/SVN` resolving to literal strings instead of their expanded paths, which caused `rancid-run` to fail with `mkdir $BASEDIR: permission denied`.
+
 ## [0.4.4] - 2026-04-21
 
 ### Changed
