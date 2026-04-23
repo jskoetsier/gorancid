@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -172,7 +173,11 @@ func (a *apiServer) handleCollect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var creds config.Credentials
-	if cs, err := config.LoadCloginrc(a.cloginrc); err == nil {
+	if cs, err := config.LoadCloginrc(a.cloginrc); err != nil {
+		if a.cloginrc != "" {
+			log.Printf("api: cloginrc load %s: %v", a.cloginrc, err)
+		}
+	} else {
 		creds = cs.Lookup(found.Hostname)
 	}
 
@@ -216,7 +221,9 @@ func (a *apiServer) handleCollect(w http.ResponseWriter, r *http.Request) {
 	configRel := filepath.ToSlash(filepath.Join("configs", hostname))
 	_ = git.Add(repoDir, []string{configRel})
 	diff, _ := git.Diff(repoDir, configRel)
-	_ = git.Commit(repoDir, "api collect "+hostname)
+	if len(diff) > 0 {
+		_ = git.Commit(repoDir, "api collect "+hostname)
+	}
 
 	resp := map[string]string{"hostname": hostname, "status": "ok"}
 	if len(diff) > 0 {
