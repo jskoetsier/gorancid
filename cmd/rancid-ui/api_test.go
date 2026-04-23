@@ -212,3 +212,45 @@ func TestHandleDeviceDiffNoHistory(t *testing.T) {
 		t.Errorf("expected empty body for no history, got %q", w.Body.String())
 	}
 }
+
+func TestHandleCollectUnknownGroup(t *testing.T) {
+	a := &apiServer{cfg: config.Config{Groups: []string{"observium"}}}
+	req := httptest.NewRequest("POST", "/api/v1/groups/other/collect?device=ac2401", nil)
+	req.SetPathValue("group", "other")
+	w := httptest.NewRecorder()
+	a.handleCollect(w, req)
+	if w.Code != 404 {
+		t.Fatalf("expected 404, got %d", w.Code)
+	}
+}
+
+func TestHandleCollectMissingDeviceParam(t *testing.T) {
+	a := &apiServer{cfg: config.Config{Groups: []string{"observium"}}}
+	req := httptest.NewRequest("POST", "/api/v1/groups/observium/collect", nil)
+	req.SetPathValue("group", "observium")
+	w := httptest.NewRecorder()
+	a.handleCollect(w, req)
+	if w.Code != 400 {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestHandleCollectDeviceNotInRouterDB(t *testing.T) {
+	dir := t.TempDir()
+	groupDir := filepath.Join(dir, "observium")
+	if err := os.MkdirAll(groupDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(groupDir, "router.db"), []byte("ac2401;cisco;up\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	a := &apiServer{cfg: config.Config{BaseDir: dir, Groups: []string{"observium"}}}
+	req := httptest.NewRequest("POST", "/api/v1/groups/observium/collect?device=nonexistent", nil)
+	req.SetPathValue("group", "observium")
+	w := httptest.NewRecorder()
+	a.handleCollect(w, req)
+	if w.Code != 404 {
+		t.Fatalf("expected 404, got %d", w.Code)
+	}
+}
