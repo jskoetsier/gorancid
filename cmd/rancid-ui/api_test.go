@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"gorancid/pkg/config"
@@ -103,5 +104,51 @@ func TestHandleGroupStatus(t *testing.T) {
 	}
 	if result[1]["last_commit"] != "" {
 		t.Errorf("expected empty last_commit for ag241, got %s", result[1]["last_commit"])
+	}
+}
+
+func TestHandleDeviceConfig(t *testing.T) {
+	dir := t.TempDir()
+	configsDir := filepath.Join(dir, "observium", "configs")
+	if err := os.MkdirAll(configsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configsDir, "ac2401"), []byte("hostname ac2401\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	a := &apiServer{cfg: config.Config{BaseDir: dir, Groups: []string{"observium"}}}
+	req := httptest.NewRequest("GET", "/", nil)
+	req.SetPathValue("group", "observium")
+	req.SetPathValue("host", "ac2401")
+	w := httptest.NewRecorder()
+	a.handleDeviceConfig(w, req)
+
+	if w.Code != 200 {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "hostname ac2401") {
+		t.Errorf("expected config content, got %q", w.Body.String())
+	}
+	if ct := w.Header().Get("Content-Type"); ct != "text/plain; charset=utf-8" {
+		t.Errorf("expected text/plain, got %s", ct)
+	}
+}
+
+func TestHandleDeviceConfigNotFound(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "observium", "configs"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	a := &apiServer{cfg: config.Config{BaseDir: dir, Groups: []string{"observium"}}}
+
+	req := httptest.NewRequest("GET", "/", nil)
+	req.SetPathValue("group", "observium")
+	req.SetPathValue("host", "nonexistent")
+	w := httptest.NewRecorder()
+	a.handleDeviceConfig(w, req)
+
+	if w.Code != 404 {
+		t.Fatalf("expected 404, got %d", w.Code)
 	}
 }

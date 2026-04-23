@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"os"
 	"path/filepath"
 	"sort"
 	"time"
@@ -72,4 +73,21 @@ func (a *apiServer) handleGroupStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].Hostname < result[j].Hostname })
 	writeJSON(w, http.StatusOK, result)
+}
+
+func (a *apiServer) handleDeviceConfig(w http.ResponseWriter, r *http.Request) {
+	g := r.PathValue("group")
+	h := r.PathValue("host")
+	if !a.allowedGroup(g) || !hostPat.MatchString(h) {
+		writeJSON(w, http.StatusNotFound, apiError{"not found"})
+		return
+	}
+	body, err := os.ReadFile(filepath.Join(a.cfg.BaseDir, g, "configs", h))
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, apiError{"config not found"})
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(body)
 }
