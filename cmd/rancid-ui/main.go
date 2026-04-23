@@ -217,5 +217,8 @@ func defaultSysconfdir() string {
 }
 
 func defaultCloginrc() string {
-	return filepath.Join(os.Getenv("HOME"), ".cloginrc")
+	if home, err := os.UserHomeDir(); err == nil {
+		return filepath.Join(home, ".cloginrc")
+	}
+	return ""
 }
