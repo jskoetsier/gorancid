@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.7] - 2026-04-23
+
+### Added
+
+- **cmd/rancid-ui**: JSON REST API under `/api/v1/` — `POST /api/v1/groups/{group}/collect?device={hostname}` (synchronous single-device collection, git commit, returns diff), `GET /api/v1/groups/{group}/devices/{host}/config` (latest config as text/plain), `GET /api/v1/groups/{group}/devices/{host}/diff` (last git diff as text/plain), `GET /api/v1/groups/{group}/status` (per-device status + last commit time from router.db + git)
+- **pkg/git**: `LastCommitTime(dir, path string) (time.Time, error)` — returns the RFC3339 timestamp of the most recent commit that touched a given path, or zero time if no history
+- **cmd/rancid-ui**: New flags `-sysconfdir`, `-cloginrc`, `-collect-timeout` to configure API collection behaviour
+
 ## [0.4.6] - 2026-04-23
 
 ### Fixed
