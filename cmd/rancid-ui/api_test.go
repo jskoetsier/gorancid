@@ -152,3 +152,63 @@ func TestHandleDeviceConfigNotFound(t *testing.T) {
 		t.Fatalf("expected 404, got %d", w.Code)
 	}
 }
+
+func TestHandleDeviceDiff(t *testing.T) {
+	dir := t.TempDir()
+	groupDir := filepath.Join(dir, "observium")
+	configsDir := filepath.Join(groupDir, "configs")
+	if err := os.MkdirAll(configsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := git.Init(groupDir); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(configsDir, "ac2401"), []byte("hostname ac2401\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := git.Add(groupDir, []string{"configs/ac2401"}); err != nil {
+		t.Fatalf("Add: %v", err)
+	}
+	if err := git.Commit(groupDir, "collect ac2401"); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	a := &apiServer{cfg: config.Config{BaseDir: dir, Groups: []string{"observium"}}}
+	req := httptest.NewRequest("GET", "/", nil)
+	req.SetPathValue("group", "observium")
+	req.SetPathValue("host", "ac2401")
+	w := httptest.NewRecorder()
+	a.handleDeviceDiff(w, req)
+
+	if w.Code != 200 {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "ac2401") {
+		t.Errorf("expected diff content mentioning ac2401, got %q", w.Body.String())
+	}
+}
+
+func TestHandleDeviceDiffNoHistory(t *testing.T) {
+	dir := t.TempDir()
+	groupDir := filepath.Join(dir, "observium")
+	if err := os.MkdirAll(filepath.Join(groupDir, "configs"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := git.Init(groupDir); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+
+	a := &apiServer{cfg: config.Config{BaseDir: dir, Groups: []string{"observium"}}}
+	req := httptest.NewRequest("GET", "/", nil)
+	req.SetPathValue("group", "observium")
+	req.SetPathValue("host", "ac2401")
+	w := httptest.NewRecorder()
+	a.handleDeviceDiff(w, req)
+
+	if w.Code != 200 {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	if w.Body.Len() != 0 {
+		t.Errorf("expected empty body for no history, got %q", w.Body.String())
+	}
+}

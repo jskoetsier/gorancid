@@ -91,3 +91,22 @@ func (a *apiServer) handleDeviceConfig(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(body)
 }
+
+func (a *apiServer) handleDeviceDiff(w http.ResponseWriter, r *http.Request) {
+	g := r.PathValue("group")
+	h := r.PathValue("host")
+	if !a.allowedGroup(g) || !hostPat.MatchString(h) {
+		writeJSON(w, http.StatusNotFound, apiError{"not found"})
+		return
+	}
+	repo := filepath.Join(a.cfg.BaseDir, g)
+	rel := filepath.ToSlash(filepath.Join("configs", h))
+	patch, err := git.LastCommitPatch(repo, rel)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, apiError{err.Error()})
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(patch)
+}
