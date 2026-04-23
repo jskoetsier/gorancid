@@ -63,11 +63,19 @@ func TestDiffNoChanges(t *testing.T) {
 
 func TestLastCommitTime(t *testing.T) {
 	dir := t.TempDir()
-	_ = git.Init(dir)
+	if err := git.Init(dir); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
 	file := filepath.Join(dir, "router.cfg")
-	_ = os.WriteFile(file, []byte("v1\n"), 0644)
-	_ = git.Add(dir, []string{"router.cfg"})
-	_ = git.Commit(dir, "initial")
+	if err := os.WriteFile(file, []byte("v1\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := git.Add(dir, []string{"router.cfg"}); err != nil {
+		t.Fatalf("Add: %v", err)
+	}
+	if err := git.Commit(dir, "initial"); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
 
 	ts, err := git.LastCommitTime(dir, "router.cfg")
 	if err != nil {
