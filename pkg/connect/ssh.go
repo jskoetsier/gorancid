@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -33,12 +34,23 @@ type SSHSession struct {
 	Creds config.Credentials
 	Opts  DeviceOpts
 
-	client    *ssh.Client
-	session   *ssh.Session
-	stdin     io.WriteCloser
-	stdout    io.Reader
-	prompt    *regexp.Regexp // detected prompt pattern
-	connected bool
+	client     *ssh.Client
+	session    *ssh.Session
+	stdin      io.WriteCloser
+	stdout     io.Reader
+	prompt     *regexp.Regexp // detected prompt pattern
+	connected  bool
+
+	// Background reader goroutine fields — one goroutine reads s.stdout
+	// into readBuf for the session lifetime. readUntilPrompt and
+	// Interact both consume from this buffer, avoiding the race where
+	// a leaked pump goroutine from a previous call steals data.
+	readMu   sync.Mutex
+	readBuf  []byte
+	readPos  int // bytes consumed by all readers
+	readCh   chan struct{}
+	readErr  error
+	readDone bool
 }
 
 // Connect dials the SSH server, authenticates, starts an interactive shell with a PTY,
@@ -132,6 +144,36 @@ func (s *SSHSession) Connect(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("stdout pipe: %w", err)
 	}
+
+	// Start a background reader that continuously buffers stdout.
+	// This avoids the per-readUntilPrompt goroutine leak that caused
+	// a race where an old goroutine consumed data meant for the next call.
+	s.readCh = make(chan struct{}, 1)
+	go func() {
+		buf := make([]byte, 4096)
+		for {
+			n, err := s.stdout.Read(buf)
+			s.readMu.Lock()
+			if n > 0 {
+				s.readBuf = append(s.readBuf, buf[:n]...)
+			}
+			if err != nil {
+				s.readErr = err
+				s.readDone = true
+				s.readMu.Unlock()
+				select {
+				case s.readCh <- struct{}{}:
+				default:
+				}
+				return
+			}
+			s.readMu.Unlock()
+			select {
+			case s.readCh <- struct{}{}:
+			default:
+			}
+		}
+	}()
 
 	// Start shell
 	if err := s.session.Shell(); err != nil {
@@ -268,7 +310,31 @@ func (s *SSHSession) Interact(ctx context.Context, in io.Reader, out io.Writer) 
 
 	waitCh := make(chan error, 1)
 	go func() {
-		_, _ = io.Copy(out, s.stdout)
+		// Copy buffered stdout to the user's terminal in real-time.
+		for {
+			s.readMu.Lock()
+			for s.readPos >= len(s.readBuf) && !s.readDone {
+				s.readMu.Unlock()
+				select {
+				case <-s.readCh:
+				case <-ctx.Done():
+					return
+				}
+				s.readMu.Lock()
+			}
+			if s.readPos < len(s.readBuf) {
+				data := s.readBuf[s.readPos:]
+				s.readPos = len(s.readBuf)
+				s.readMu.Unlock()
+				out.Write(data)
+				continue
+			}
+			done := s.readDone
+			s.readMu.Unlock()
+			if done {
+				break
+			}
+		}
 		waitCh <- s.session.Wait()
 	}()
 
@@ -381,47 +447,13 @@ var rePagerPrompt = regexp.MustCompile(`--More--| --More-- `)
 // When a pager prompt (like --More--) is detected, it sends a space to continue output.
 //
 // The underlying ssh.Session stdout is a backpressure-bound pipe that does NOT
-// honour SetReadDeadline, so a plain blocking Read on a silent remote will hang
-// forever. To guarantee the call respects both ctx cancellation and the provided
-// timeout, the blocking read runs in a dedicated goroutine and is gated via
-// select. Only one goroutine is created per call, avoiding the leak of spawning
-// a new goroutine on every loop iteration.
+// honour SetReadDeadline. A single background goroutine (started in Connect)
+// continuously reads from the pipe into a shared buffer. This function consumes
+// from that buffer, avoiding the race where a leaked per-call pump goroutine
+// stole data meant for the next invocation.
 func (s *SSHSession) readUntilPrompt(ctx context.Context, buf []byte, timeout time.Duration) ([]byte, error) {
 	deadline := time.Now().Add(timeout)
 	var accumulated []byte
-
-	type readResult struct {
-		n    int
-		data []byte
-		err  error
-	}
-
-	// Start a single pump goroutine. It exits when the underlying pipe
-	// closes (session.Close) or ctx is cancelled.
-	ch := make(chan readResult, 1)
-	go func() {
-		for {
-			n, err := s.stdout.Read(buf)
-			if n > 0 {
-				// Copy so buf can be reused on the next read.
-				data := append([]byte(nil), buf[:n]...)
-				select {
-				case ch <- readResult{n: n, data: data, err: err}:
-				case <-ctx.Done():
-					return
-				}
-			} else {
-				select {
-				case ch <- readResult{err: err}:
-				case <-ctx.Done():
-					return
-				}
-				if err != nil {
-					return
-				}
-			}
-		}
-	}()
 
 	for {
 		remaining := time.Until(deadline)
@@ -429,38 +461,53 @@ func (s *SSHSession) readUntilPrompt(ctx context.Context, buf []byte, timeout ti
 			return accumulated, ErrTimeout
 		}
 
-		var res readResult
 		select {
 		case <-ctx.Done():
 			return accumulated, ctx.Err()
-		case <-time.After(remaining):
-			return accumulated, ErrTimeout
-		case res = <-ch:
+		default:
 		}
 
-		if res.n > 0 {
-			accumulated = append(accumulated, res.data...)
+		// Consume any new data produced by the background reader.
+		s.readMu.Lock()
+		if len(s.readBuf) > s.readPos {
+			accumulated = append(accumulated, s.readBuf[s.readPos:]...)
+			s.readPos = len(s.readBuf)
+		}
+		readErr := s.readErr
+		readDone := s.readDone
+		s.readMu.Unlock()
 
-			// Check for pager prompts and send space to continue
+		// Check for pager prompts and send space to continue.
+		if len(accumulated) > 0 {
 			cleaned := s.cleanANSI(accumulated)
 			if rePagerPrompt.Match(cleaned) {
 				fmt.Fprint(s.stdin, " ")
 				accumulated = rePagerPrompt.ReplaceAll(accumulated, nil)
 				continue
 			}
-
 			if s.prompt.Match(cleaned) {
 				return accumulated, nil
 			}
 		}
-		if res.err != nil {
-			if netErr, ok := res.err.(net.Error); ok && netErr.Timeout() {
-				continue
-			}
-			if res.err == io.EOF {
+
+		if readErr != nil {
+			if readErr == io.EOF {
 				return accumulated, nil
 			}
-			return accumulated, res.err
+			return accumulated, readErr
+		}
+		if readDone {
+			return accumulated, nil
+		}
+
+		// Wait for new data, context cancellation, or timeout.
+		select {
+		case <-ctx.Done():
+			return accumulated, ctx.Err()
+		case <-time.After(remaining):
+			return accumulated, ErrTimeout
+		case <-s.readCh:
+			// loop and consume fresh data
 		}
 	}
 }
