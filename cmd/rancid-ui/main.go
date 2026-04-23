@@ -94,13 +94,17 @@ type server struct {
 	tmpl *template.Template
 }
 
-func (s *server) allowedGroup(name string) bool {
-	for _, g := range s.cfg.Groups {
+func allowedGroup(groups []string, name string) bool {
+	for _, g := range groups {
 		if g == name {
 			return true
 		}
 	}
 	return false
+}
+
+func (s *server) allowedGroup(name string) bool {
+	return allowedGroup(s.cfg.Groups, name)
 }
 
 func (s *server) handleFleet(w http.ResponseWriter, r *http.Request) {

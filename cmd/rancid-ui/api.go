@@ -20,12 +20,7 @@ type apiServer struct {
 }
 
 func (a *apiServer) allowedGroup(name string) bool {
-	for _, g := range a.cfg.Groups {
-		if g == name {
-			return true
-		}
-	}
-	return false
+	return allowedGroup(a.cfg.Groups, name)
 }
 
 type apiError struct {
