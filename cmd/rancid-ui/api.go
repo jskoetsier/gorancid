@@ -59,7 +59,7 @@ func (a *apiServer) handleGroupStatus(w http.ResponseWriter, r *http.Request) {
 	repoDir := filepath.Join(a.cfg.BaseDir, g)
 	result := make([]deviceStatus, 0, len(devices))
 	for _, d := range devices {
-		ts, _ := git.LastCommitTime(repoDir, filepath.Join("configs", d.Hostname))
+		ts, _ := git.LastCommitTime(repoDir, filepath.ToSlash(filepath.Join("configs", d.Hostname)))
 		var lastCommit string
 		if !ts.IsZero() {
 			lastCommit = ts.UTC().Format(time.RFC3339)
@@ -78,7 +78,11 @@ func (a *apiServer) handleGroupStatus(w http.ResponseWriter, r *http.Request) {
 func (a *apiServer) handleDeviceConfig(w http.ResponseWriter, r *http.Request) {
 	g := r.PathValue("group")
 	h := r.PathValue("host")
-	if !a.allowedGroup(g) || !hostPat.MatchString(h) {
+	if !a.allowedGroup(g) {
+		writeJSON(w, http.StatusNotFound, apiError{"unknown group"})
+		return
+	}
+	if !hostPat.MatchString(h) {
 		writeJSON(w, http.StatusNotFound, apiError{"not found"})
 		return
 	}
@@ -95,7 +99,11 @@ func (a *apiServer) handleDeviceConfig(w http.ResponseWriter, r *http.Request) {
 func (a *apiServer) handleDeviceDiff(w http.ResponseWriter, r *http.Request) {
 	g := r.PathValue("group")
 	h := r.PathValue("host")
-	if !a.allowedGroup(g) || !hostPat.MatchString(h) {
+	if !a.allowedGroup(g) {
+		writeJSON(w, http.StatusNotFound, apiError{"unknown group"})
+		return
+	}
+	if !hostPat.MatchString(h) {
 		writeJSON(w, http.StatusNotFound, apiError{"not found"})
 		return
 	}
