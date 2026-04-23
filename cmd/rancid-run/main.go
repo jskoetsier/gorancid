@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"gorancid/pkg/config"
@@ -38,6 +39,17 @@ func main() {
 	cfg, err := config.Load(confPath)
 	if err != nil {
 		log.Fatalf("config: %v", err)
+	}
+
+	// Prevent concurrent runs: acquire an exclusive lock on a per-conf lockfile.
+	lockPath := filepath.Join(os.TempDir(), "rancid-run-"+filepath.Base(confPath)+".lock")
+	lockFile, err := os.OpenFile(lockPath, os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		log.Fatalf("lock: open %s: %v", lockPath, err)
+	}
+	defer lockFile.Close()
+	if err := syscall.Flock(int(lockFile.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		log.Fatalf("rancid-run already running (lock held: %s) — exiting", lockPath)
 	}
 
 	groups := flag.Args()

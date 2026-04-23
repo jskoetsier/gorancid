@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.6] - 2026-04-23
+
+### Fixed
+
+- **cmd/rancid-run**: Acquire an exclusive `flock` on a per-conf lockfile at startup. If another `rancid-run` is already running for the same config, the new invocation exits immediately with a clear error instead of spawning a parallel run. Prevents cron overlap when a collection takes longer than the cron interval.
+
 ## [0.4.5] - 2026-04-23
 
 ### Added
