@@ -60,3 +60,33 @@ func TestDiffNoChanges(t *testing.T) {
 		t.Errorf("expected empty diff with no changes, got %q", diff)
 	}
 }
+
+func TestLastCommitTime(t *testing.T) {
+	dir := t.TempDir()
+	_ = git.Init(dir)
+	file := filepath.Join(dir, "router.cfg")
+	_ = os.WriteFile(file, []byte("v1\n"), 0644)
+	_ = git.Add(dir, []string{"router.cfg"})
+	_ = git.Commit(dir, "initial")
+
+	ts, err := git.LastCommitTime(dir, "router.cfg")
+	if err != nil {
+		t.Fatalf("LastCommitTime: %v", err)
+	}
+	if ts.IsZero() {
+		t.Error("expected non-zero time for committed file")
+	}
+}
+
+func TestLastCommitTimeNoHistory(t *testing.T) {
+	dir := t.TempDir()
+	_ = git.Init(dir)
+
+	ts, err := git.LastCommitTime(dir, "nonexistent.cfg")
+	if err != nil {
+		t.Fatalf("LastCommitTime: %v", err)
+	}
+	if !ts.IsZero() {
+		t.Errorf("expected zero time for nonexistent path, got %v", ts)
+	}
+}

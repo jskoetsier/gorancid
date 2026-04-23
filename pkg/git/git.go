@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 // Init initializes a new git repository in dir.
@@ -57,6 +58,26 @@ func LastCommitPatch(dir, path string) ([]byte, error) {
 		return nil, fmt.Errorf("git log -p: %w", err)
 	}
 	return out, nil
+}
+
+// LastCommitTime returns the timestamp of the most recent commit that touched path,
+// or zero time if no such commit exists.
+func LastCommitTime(dir, path string) (time.Time, error) {
+	cmd := exec.Command("git", "log", "-1", "--format=%cI", "--", path)
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		var ee *exec.ExitError
+		if errors.As(err, &ee) {
+			return time.Time{}, nil
+		}
+		return time.Time{}, fmt.Errorf("git log: %w", err)
+	}
+	s := strings.TrimSpace(string(out))
+	if s == "" {
+		return time.Time{}, nil
+	}
+	return time.Parse(time.RFC3339, s)
 }
 
 func run(dir, name string, args ...string) error {
