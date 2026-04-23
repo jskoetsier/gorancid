@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.8] - 2026-04-23
+
+### Fixed
+
+- **pkg/connect**: Eliminated a goroutine race in `SSHSession.readUntilPrompt` where a leaked per-call pump goroutine consumed stdout data meant for the next invocation. Replaced with a single session-level background reader that continuously buffers `s.stdout` into a shared buffer. `readUntilPrompt` and `Interact` both consume from this buffer. Fixes spurious "connect: command timed out" on setup/config commands for Arista EOS, Cisco NX-OS, and other device types when running under parallel load.
+
 ## [0.4.7] - 2026-04-23
 
 ### Added
