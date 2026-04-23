@@ -26,9 +26,12 @@ var hostPat = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]*$`)
 
 func main() {
 	var (
-		showVer = flag.Bool("V", false, "print version")
-		listen  = flag.String("listen", "127.0.0.1:8080", "HTTP listen address (default loopback)")
-		conf    = flag.String("C", "", "path to rancid.conf (or set RANCID_CONF)")
+		showVer        = flag.Bool("V", false, "print version")
+		listen         = flag.String("listen", "127.0.0.1:8080", "HTTP listen address (default loopback)")
+		conf           = flag.String("C", "", "path to rancid.conf (or set RANCID_CONF)")
+		collectTimeout = flag.Duration("collect-timeout", 60*time.Second, "per-device collection timeout for /api/v1/.../collect")
+		sysconfdir     = flag.String("sysconfdir", defaultSysconfdir(), "path containing rancid.types.base and rancid.types.conf")
+		cloginrc       = flag.String("cloginrc", defaultCloginrc(), "path to .cloginrc credentials file")
 	)
 	flag.Parse()
 
@@ -56,6 +59,13 @@ func main() {
 
 	s := &server{cfg: cfg, tmpl: tmpl}
 
+	api := &apiServer{
+		cfg:        cfg,
+		sysconfdir: *sysconfdir,
+		cloginrc:   *cloginrc,
+		timeout:    *collectTimeout,
+	}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet || r.URL.Path != "/" {
@@ -67,6 +77,10 @@ func main() {
 	mux.Handle("GET /group/{group}", http.HandlerFunc(s.handleGroup))
 	mux.Handle("GET /group/{group}/device/{host}/config", http.HandlerFunc(s.handleConfig))
 	mux.Handle("GET /group/{group}/device/{host}/diff", http.HandlerFunc(s.handleDiff))
+	mux.Handle("POST /api/v1/groups/{group}/collect", http.HandlerFunc(api.handleCollect))
+	mux.Handle("GET /api/v1/groups/{group}/devices/{host}/config", http.HandlerFunc(api.handleDeviceConfig))
+	mux.Handle("GET /api/v1/groups/{group}/devices/{host}/diff", http.HandlerFunc(api.handleDeviceDiff))
+	mux.Handle("GET /api/v1/groups/{group}/status", http.HandlerFunc(api.handleGroupStatus))
 
 	log.Printf("rancid-ui %s listening on http://%s/ (rancid.conf=%s)", version.Version, *listen, confPath)
 	srv := &http.Server{
@@ -193,4 +207,15 @@ func (s *server) render(w http.ResponseWriter, name string, data map[string]any)
 	if err := s.tmpl.ExecuteTemplate(w, name, data); err != nil {
 		log.Printf("template %s: %v", name, err)
 	}
+}
+
+func defaultSysconfdir() string {
+	if v := os.Getenv("RANCID_SYSCONFDIR"); v != "" {
+		return v
+	}
+	return "/usr/local/rancid/etc"
+}
+
+func defaultCloginrc() string {
+	return filepath.Join(os.Getenv("HOME"), ".cloginrc")
 }
