@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.10] - 2026-04-24
+
+### Added
+
+- **pkg/parse/asa**: Cisco ASA parser with `terminal pager 0` setup command (instead of `terminal length 0` used by IOS). Registered as `asa`, aliased as `cisco-asa`. Reuses IOS parser for output filtering.
+
 ## [0.4.9] - 2026-04-24
 
 ### Added
