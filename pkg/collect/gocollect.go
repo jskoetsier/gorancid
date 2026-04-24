@@ -175,9 +175,20 @@ func collectSCPAndSSH(ctx context.Context, session connect.Session, opts connect
 		allOutput = append(allOutput, '\n')
 	}
 
-	// Try SCP download first
-	if downloader, ok := session.(connect.SCPDownloader); ok {
-		configData, err := downloader.SCPDownload(ctx, opts.SCPConfigFile)
+	// Try SFTP download first, then SCP, then SSH commands
+	if sftpDownloader, ok := session.(connect.SFTPDownloader); ok {
+		configData, err := sftpDownloader.SFTPDownload(ctx, opts.SCPConfigFile)
+		if err == nil {
+			// SFTP succeeded — inject command echo for parser section detection
+			allOutput = append(allOutput, []byte("show full-configuration\n")...)
+			allOutput = append(allOutput, configData...)
+			allOutput = append(allOutput, '\n')
+			return allOutput, nil
+		}
+		log.Printf("sftp download %s on %s: %v — falling back to SCP", opts.SCPConfigFile, hostname, err)
+	}
+	if scpDownloader, ok := session.(connect.SCPDownloader); ok {
+		configData, err := scpDownloader.SCPDownload(ctx, opts.SCPConfigFile)
 		if err == nil {
 			// SCP succeeded — inject command echo for parser section detection
 			allOutput = append(allOutput, []byte("show full-configuration\n")...)

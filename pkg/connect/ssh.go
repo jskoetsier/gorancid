@@ -17,6 +17,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/sys/unix"
+	"github.com/pkg/sftp"
 
 	"gorancid/pkg/config"
 )
@@ -674,4 +675,44 @@ func (s *SSHSession) SCPDownload(ctx context.Context, remotePath string) ([]byte
 	}
 
 	return content[:totalRead], nil
+}
+
+// SFTPDownload downloads a file from the remote host via SFTP over the existing
+// SSH connection. It is used as a fallback when SCP protocol is not supported
+// by the remote device (e.g. certain FortiGate firmware versions).
+func (s *SSHSession) SFTPDownload(ctx context.Context, remotePath string) ([]byte, error) {
+	if s.client == nil {
+		return nil, fmt.Errorf("not connected")
+	}
+
+	c, err := sftp.NewClient(s.client)
+	if err != nil {
+		return nil, fmt.Errorf("sftp client: %w", err)
+	}
+	defer c.Close()
+
+	f, err := c.Open(remotePath)
+	if err != nil {
+		return nil, fmt.Errorf("sftp open %s: %w", remotePath, err)
+	}
+	defer f.Close()
+
+	// Read with context cancellation support
+	done := make(chan struct{})
+	var data []byte
+	var readErr error
+	go func() {
+		defer close(done)
+		data, readErr = io.ReadAll(f)
+	}()
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-done:
+		if readErr != nil {
+			return nil, fmt.Errorf("sftp read %s: %w", remotePath, readErr)
+		}
+		return data, nil
+	}
 }

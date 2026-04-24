@@ -52,6 +52,12 @@ type SCPDownloader interface {
 	SCPDownload(ctx context.Context, remotePath string) ([]byte, error)
 }
 
+// SFTPDownloader is an optional interface that sessions can implement to
+// support downloading configuration files via the SFTP protocol.
+type SFTPDownloader interface {
+	SFTPDownload(ctx context.Context, remotePath string) ([]byte, error)
+}
+
 // NewSession returns an SSHSession or TelnetSession based on the first matching
 // method in creds.Methods (in order). Empty methods defaults to SSH on port 22.
 func NewSession(host string, defaultSSHPort int, creds config.Credentials, opts DeviceOpts, preferNative bool) (Session, error) {
