@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.9] - 2026-04-24
+
+### Added
+
+- **pkg/connect**: `SFTPDownload` method on `SSHSession` for downloading device configs via SFTP over the existing SSH connection. The collector now tries SFTP first, then SCP, then falls back to interactive SSH. This improves FortiGate collection on firmware versions where SCP protocol is not available but SFTP is.
+
 ## [0.4.8] - 2026-04-23
 
 ### Fixed
