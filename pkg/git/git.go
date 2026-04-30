@@ -8,15 +8,51 @@ import (
 	"time"
 )
 
-// Init initializes a new git repository in dir.
+// Init initializes a new git repository in dir with branch name "main".
 func Init(dir string) error {
-	if err := run(dir, "git", "init"); err != nil {
+	if err := run(dir, "git", "init", "-b", "main"); err != nil {
 		return err
 	}
 	// Set required git identity for commits to work in isolated environments.
 	_ = run(dir, "git", "config", "user.email", "rancid@localhost")
 	_ = run(dir, "git", "config", "user.name", "rancid")
 	return nil
+}
+
+// InitBare initializes a bare git repository in dir (suitable as a remote).
+func InitBare(dir string) error {
+	return run(dir, "git", "init", "--bare", "-b", "main")
+}
+
+// AddRemote adds a named remote to the repository in dir.
+func AddRemote(dir, name, url string) error {
+	return run(dir, "git", "remote", "add", name, url)
+}
+
+// RemoteURL returns the fetch URL of the named remote.
+func RemoteURL(dir, name string) (string, error) {
+	cmd := exec.Command("git", "remote", "get-url", name)
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("git remote get-url %s: %w", name, err)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// SetRemote adds the named remote if it does not exist, or updates its URL if it does.
+func SetRemote(dir, name, url string) error {
+	err := run(dir, "git", "remote", "add", name, url)
+	if err == nil {
+		return nil
+	}
+	// "already exists" — update the URL instead.
+	return run(dir, "git", "remote", "set-url", name, url)
+}
+
+// Push pushes branch to remote.
+func Push(dir, remote, branch string) error {
+	return run(dir, "git", "push", remote, branch)
 }
 
 // Add stages files for commit.
@@ -61,9 +97,14 @@ func LastCommitPatch(dir, path string) ([]byte, error) {
 }
 
 // LastCommitTime returns the timestamp of the most recent commit that touched path,
-// or zero time if no such commit exists.
+// or zero time if no such commit exists. Pass an empty path to get the most recent
+// commit in the repository regardless of which file it touched.
 func LastCommitTime(dir, path string) (time.Time, error) {
-	cmd := exec.Command("git", "log", "-1", "--format=%cI", "--", path)
+	args := []string{"log", "-1", "--format=%cI"}
+	if path != "" {
+		args = append(args, "--", path)
+	}
+	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
 	out, err := cmd.Output()
 	if err != nil {

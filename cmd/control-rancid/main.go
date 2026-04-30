@@ -161,6 +161,11 @@ func main() {
 		log.Printf("git commit: %v (possibly nothing to commit)", err)
 	}
 
+	// Push to remote if configured
+	if err := pushIfConfigured(repoDir, cfg.GitRemote); err != nil {
+		log.Printf("git push: %v", err)
+	}
+
 	// Get diff and notify
 	diff, _ := git.Diff(repoDir, "configs/")
 	if len(diff) > 0 {
@@ -180,6 +185,18 @@ func main() {
 			log.Printf("notify: %v", err)
 		}
 	}
+}
+
+// pushIfConfigured sets the "origin" remote to remoteURL and pushes "main".
+// It is a no-op when remoteURL is empty.
+func pushIfConfigured(repoDir, remoteURL string) error {
+	if remoteURL == "" {
+		return nil
+	}
+	if err := git.SetRemote(repoDir, "origin", remoteURL); err != nil {
+		return err
+	}
+	return git.Push(repoDir, "origin", "main")
 }
 
 // selectDevices filters the router.db entries and returns the devices that should

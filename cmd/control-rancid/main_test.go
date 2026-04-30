@@ -1,11 +1,60 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"gorancid/pkg/config"
 	"gorancid/pkg/devicetype"
+	"gorancid/pkg/git"
 )
+
+func TestPushIfConfigured_NoOp(t *testing.T) {
+	dir := t.TempDir()
+	if err := git.Init(dir); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+
+	// Empty GitRemote — should do nothing and not error.
+	if err := pushIfConfigured(dir, ""); err != nil {
+		t.Errorf("pushIfConfigured with empty remote: %v", err)
+	}
+}
+
+func TestPushIfConfigured_Pushes(t *testing.T) {
+	remote := t.TempDir()
+	if err := git.InitBare(remote); err != nil {
+		t.Fatalf("InitBare: %v", err)
+	}
+
+	local := t.TempDir()
+	if err := git.Init(local); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	file := filepath.Join(local, "switch1.cfg")
+	if err := os.WriteFile(file, []byte("hostname switch1\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := git.Add(local, []string{"switch1.cfg"}); err != nil {
+		t.Fatalf("Add: %v", err)
+	}
+	if err := git.Commit(local, "collect switch1"); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	if err := pushIfConfigured(local, remote); err != nil {
+		t.Fatalf("pushIfConfigured: %v", err)
+	}
+
+	ts, err := git.LastCommitTime(remote, "")
+	if err != nil {
+		t.Fatalf("LastCommitTime on remote: %v", err)
+	}
+	if ts.IsZero() {
+		t.Error("expected remote to have a commit after pushIfConfigured")
+	}
+}
 
 func TestSelectDevices(t *testing.T) {
 	typeSpecs := map[string]devicetype.DeviceSpec{

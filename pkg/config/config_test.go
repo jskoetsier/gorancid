@@ -34,6 +34,26 @@ func TestLoad(t *testing.T) {
 	}
 }
 
+func TestLoadGitRemote(t *testing.T) {
+	cfg, err := config.Load("testdata/rancid.conf")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.GitRemote != "git@git.corp.example.com:network/configs.git" {
+		t.Errorf("GitRemote = %q, want git@git.corp.example.com:network/configs.git", cfg.GitRemote)
+	}
+}
+
+func TestLoadGitRemoteAbsent(t *testing.T) {
+	cfg, err := config.Load("testdata/rancid_minimal.conf")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.GitRemote != "" {
+		t.Errorf("GitRemote = %q, want empty when not set", cfg.GitRemote)
+	}
+}
+
 func TestLoadDefaults(t *testing.T) {
 	cfg, err := config.Load("testdata/rancid_minimal.conf")
 	if err != nil {

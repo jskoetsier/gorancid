@@ -98,3 +98,103 @@ func TestLastCommitTimeNoHistory(t *testing.T) {
 		t.Errorf("expected zero time for nonexistent path, got %v", ts)
 	}
 }
+
+func TestSetRemote_Add(t *testing.T) {
+	dir := t.TempDir()
+	if err := git.Init(dir); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+
+	if err := git.SetRemote(dir, "origin", "git@git.example.com:org/repo.git"); err != nil {
+		t.Fatalf("SetRemote (add): %v", err)
+	}
+
+	url, err := git.RemoteURL(dir, "origin")
+	if err != nil {
+		t.Fatalf("RemoteURL: %v", err)
+	}
+	if url != "git@git.example.com:org/repo.git" {
+		t.Errorf("after add: got %q, want %q", url, "git@git.example.com:org/repo.git")
+	}
+}
+
+func TestSetRemote_Update(t *testing.T) {
+	dir := t.TempDir()
+	if err := git.Init(dir); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+
+	_ = git.AddRemote(dir, "origin", "git@git.example.com:org/old.git")
+
+	if err := git.SetRemote(dir, "origin", "git@git.example.com:org/new.git"); err != nil {
+		t.Fatalf("SetRemote (update): %v", err)
+	}
+
+	url, err := git.RemoteURL(dir, "origin")
+	if err != nil {
+		t.Fatalf("RemoteURL: %v", err)
+	}
+	if url != "git@git.example.com:org/new.git" {
+		t.Errorf("after update: got %q, want %q", url, "git@git.example.com:org/new.git")
+	}
+}
+
+func TestAddRemote(t *testing.T) {
+	dir := t.TempDir()
+	if err := git.Init(dir); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+
+	if err := git.AddRemote(dir, "origin", "git@git.example.com:org/repo.git"); err != nil {
+		t.Fatalf("AddRemote: %v", err)
+	}
+
+	// Verify the remote was actually registered.
+	url, err := git.RemoteURL(dir, "origin")
+	if err != nil {
+		t.Fatalf("RemoteURL: %v", err)
+	}
+	if url != "git@git.example.com:org/repo.git" {
+		t.Errorf("expected remote URL %q, got %q", "git@git.example.com:org/repo.git", url)
+	}
+}
+
+func TestPush(t *testing.T) {
+	// Use a local bare repo as a stand-in for the remote.
+	remote := t.TempDir()
+	if err := git.InitBare(remote); err != nil {
+		t.Fatalf("InitBare: %v", err)
+	}
+
+	local := t.TempDir()
+	if err := git.Init(local); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+
+	file := filepath.Join(local, "router.cfg")
+	if err := os.WriteFile(file, []byte("hostname switch1\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := git.Add(local, []string{"router.cfg"}); err != nil {
+		t.Fatalf("Add: %v", err)
+	}
+	if err := git.Commit(local, "initial config"); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	if err := git.AddRemote(local, "origin", remote); err != nil {
+		t.Fatalf("AddRemote: %v", err)
+	}
+	if err := git.Push(local, "origin", "main"); err != nil {
+		t.Fatalf("Push: %v", err)
+	}
+
+	// Verify the remote received the commit.
+	ts, err := git.LastCommitTime(remote, "")
+	if err != nil {
+		t.Fatalf("LastCommitTime on remote: %v", err)
+	}
+	if ts.IsZero() {
+		t.Error("expected remote to have a commit after push")
+	}
+}

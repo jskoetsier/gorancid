@@ -35,6 +35,7 @@ type Config struct {
 	MailOpts    string
 	MailSplit   int
 	MailHeaders string
+	GitRemote   string // GIT_REMOTE — if set, configs are pushed here after each collection run
 }
 
 // assignRE matches KEY=value lines, ignoring trailing ; export KEY and comments.
@@ -80,6 +81,7 @@ func Load(path string) (Config, error) {
 		MailDomain:  env["MAILDOMAIN"],
 		MailOpts:    env["MAILOPTS"],
 		MailHeaders: env["MAILHEADERS"],
+		GitRemote:   env["GIT_REMOTE"],
 	}
 	if g := env["LIST_OF_GROUPS"]; g != "" {
 		cfg.Groups = strings.Fields(g)

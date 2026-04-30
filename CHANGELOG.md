@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.12] - 2026-04-30
+
+### Added
+
+- **pkg/git**: `AddRemote`, `SetRemote` (add-or-update), `RemoteURL`, `Push`, `InitBare` — full remote/push support for pushing collected configs to a remote git repository.
+- **pkg/config**: `GitRemote` field parsed from `GIT_REMOTE` in `rancid.conf`. When set, `control-rancid` pushes to this URL after every successful collection run.
+- **cmd/control-rancid**: `pushIfConfigured` — after each commit, pushes to the configured remote (`origin`) using `GIT_REMOTE`. No-op when `GIT_REMOTE` is unset, so existing deployments are unaffected.
+
+### Changed
+
+- **pkg/git**: `Init` now passes `-b main` to `git init`, ensuring new repositories always start on the `main` branch.
+- **pkg/git**: `LastCommitTime` with an empty path now queries the most recent commit in the repository regardless of file, making it usable as a "has any commits" check on bare repos.
+
 ## [0.4.11] - 2026-04-30
 
 ### Changed
