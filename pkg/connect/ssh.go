@@ -15,9 +15,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/sys/unix"
-	"github.com/pkg/sftp"
 
 	"gorancid/pkg/config"
 )
@@ -35,12 +35,12 @@ type SSHSession struct {
 	Creds config.Credentials
 	Opts  DeviceOpts
 
-	client     *ssh.Client
-	session    *ssh.Session
-	stdin      io.WriteCloser
-	stdout     io.Reader
-	prompt     *regexp.Regexp // detected prompt pattern
-	connected  bool
+	client    *ssh.Client
+	session   *ssh.Session
+	stdin     io.WriteCloser
+	stdout    io.Reader
+	prompt    *regexp.Regexp // detected prompt pattern
+	connected bool
 
 	// Background reader goroutine fields — one goroutine reads s.stdout
 	// into readBuf for the session lifetime. readUntilPrompt and
@@ -382,7 +382,9 @@ func (s *SSHSession) watchWindowChanges(ctx context.Context, inFile, outFile *os
 		}
 		cols, rows, err := getSize(fd)
 		if err == nil && cols > 0 && rows > 0 {
-			_ = s.session.WindowChange(rows, cols)
+			if err := s.session.WindowChange(rows, cols); err != nil {
+				log.Printf("ssh window resize on %s: %v", s.Host, err)
+			}
 		}
 	}
 	apply()
@@ -542,10 +544,11 @@ func (s *SSHSession) stripEchoAndPrompt(output []byte, cmd string) []byte {
 	return []byte(strings.Join(lines[start:end], "\n"))
 }
 
+var reANSI = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
+
 // cleanANSIBytes strips ANSI escape sequences from device output.
 func cleanANSIBytes(data []byte) []byte {
-	re := regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
-	return re.ReplaceAll(data, nil)
+	return reANSI.ReplaceAll(data, nil)
 }
 
 // cleanANSI strips ANSI escape sequences from the output.
@@ -574,7 +577,7 @@ func (s *SSHSession) SCPDownload(ctx context.Context, remotePath string) ([]byte
 		return nil, fmt.Errorf("scp stdin: %w", err)
 	}
 	stdout, err := scpSession.StdoutPipe()
- if err != nil {
+	if err != nil {
 		return nil, fmt.Errorf("scp stdout: %w", err)
 	}
 

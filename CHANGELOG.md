@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.11] - 2026-04-30
+
+### Changed
+
+- **pkg/connect**: `selectNativeTransport` exported as `SelectNativeTransport`, eliminating duplicate transport resolution logic between `cmd/clogin` and `pkg/connect`.
+- **pkg/pool** (renamed from `pkg/par`): bounded concurrent job pool. Package name changed from cryptic "par" to descriptive "pool".
+- **pkg/devicetype**: replaced `goto` with labeled `continue specLoop` in `RegisterMissingParsers`.
+
+### Fixed
+
+- **pkg/connect**: `cleanANSIBytes` no longer recompiles its regex on every call — extracted to package-level `var reANSI`.
+- **pkg/connect**: `WindowChange` errors are now logged instead of silently discarded.
+- **pkg/connect**: fixed indentation in `SCPDownload` (gofmt).
+- **pkg/collect**: removed hand-rolled `strings.Contains` reimplementation in test helpers.
+
+### Added
+
+- **pkg/connect**: `termios.go` documenting platform-specific terminal I/O control function files.
+- **.gitlab-ci.yml**: `gofmt -d -s` check added to CI `test` stage to prevent formatting drift.
+
 ## [0.4.10] - 2026-04-24
 
 ### Added

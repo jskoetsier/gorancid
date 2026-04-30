@@ -134,11 +134,11 @@ func detectSection(line string) (section, bool) {
 // ---------------------------------------------------------------------------
 
 var (
-	reVersion   = regexp.MustCompile(`(?i)Dell (?:Networking|Force10) OS.*Version\s+(\S+)`)
-	reSerial    = regexp.MustCompile(`(?i)system serial number\s*:\s*(\S+)`)
-	reModel     = regexp.MustCompile(`(?i)system type\s*:\s*(.+)`)
-	reUptime    = regexp.MustCompile(`(?i)system up time|uptime`)
-	rePager     = regexp.MustCompile(`--\s*[Mm]ore\s*--`)
+	reVersion = regexp.MustCompile(`(?i)Dell (?:Networking|Force10) OS.*Version\s+(\S+)`)
+	reSerial  = regexp.MustCompile(`(?i)system serial number\s*:\s*(\S+)`)
+	reModel   = regexp.MustCompile(`(?i)system type\s*:\s*(.+)`)
+	reUptime  = regexp.MustCompile(`(?i)system up time|uptime`)
+	rePager   = regexp.MustCompile(`--\s*[Mm]ore\s*--`)
 )
 
 func processShowVersionLine(line string, md map[string]string) string {
@@ -177,15 +177,15 @@ func isVolatileLine(line string) bool {
 // ---------------------------------------------------------------------------
 
 var (
-	reRCSTag        = regexp.MustCompile(`\$Revision:`)
-	reIdTag         = regexp.MustCompile(`\$Id:`)
-	reTimestamp     = regexp.MustCompile(`(?i)^!\s+(?:last configuration change|NTP time|system time)`)
+	reRCSTag    = regexp.MustCompile(`\$Revision:`)
+	reIdTag     = regexp.MustCompile(`\$Id:`)
+	reTimestamp = regexp.MustCompile(`(?i)^!\s+(?:last configuration change|NTP time|system time)`)
 	// Password patterns
-	reEnablePassword    = regexp.MustCompile(`^(\s*enable (?:password|secret))\s+\S+(.*)`)
-	reUsernamePassword  = regexp.MustCompile(`^(\s*username\s+\S+\s+(?:password|secret))\s+\S+(.*)`)
-	reBgpPassword       = regexp.MustCompile(`^(\s*neighbor\s+\S+\s+password)\s+\S+(.*)`)
-	reOspfAuthKey       = regexp.MustCompile(`^(\s*ip ospf authentication-key)\s+\S+(.*)`)
-	reSnmpCommunity     = regexp.MustCompile(`^(\s*snmp-server community)\s+\S+(.*)`)
+	reEnablePassword   = regexp.MustCompile(`^(\s*enable (?:password|secret))\s+\S+(.*)`)
+	reUsernamePassword = regexp.MustCompile(`^(\s*username\s+\S+\s+(?:password|secret))\s+\S+(.*)`)
+	reBgpPassword      = regexp.MustCompile(`^(\s*neighbor\s+\S+\s+password)\s+\S+(.*)`)
+	reOspfAuthKey      = regexp.MustCompile(`^(\s*ip ospf authentication-key)\s+\S+(.*)`)
+	reSnmpCommunity    = regexp.MustCompile(`^(\s*snmp-server community)\s+\S+(.*)`)
 )
 
 func processRunningLine(line string, filter parse.FilterOpts, prevWasBang *bool) string {

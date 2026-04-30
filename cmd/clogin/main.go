@@ -8,7 +8,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -115,7 +114,7 @@ func main() {
 	if !canUseNative(spec.Type, creds.Methods) {
 		log.Fatalf("clogin: no native transport available for type %q on %s (check .cloginrc methods and device type parser registration)", spec.Type, hostname)
 	}
-	kind, port, _ := firstNativeTransport(creds.Methods)
+	kind, port, _ := connect.SelectNativeTransport(creds.Methods, 22)
 	fmt.Fprintf(os.Stderr, "using native %s (port %d): type=%s host=%s\n", kind, port, spec.Type, hostname)
 	if err := runNative(context.Background(), hostname, port, spec.Type, creds, commands, timeout, *noEnable, *autoEnable, *interactive || len(commands) == 0); err != nil {
 		log.Fatalf("clogin: %v", err)
@@ -202,35 +201,8 @@ func canUseNative(deviceType string, methods []string) bool {
 	if _, ok := parser.(interface{ DeviceOpts() connect.DeviceOpts }); !ok {
 		return false
 	}
-	_, _, ok = firstNativeTransport(methods)
+	_, _, ok = connect.SelectNativeTransport(methods, 22)
 	return ok
-}
-
-// firstNativeTransport returns the first supported transport from .cloginrc
-// method list ("ssh", "ssh:port", "telnet", "telnet:port") in declaration order.
-func firstNativeTransport(methods []string) (kind string, port int, ok bool) {
-	if len(methods) == 0 {
-		return "ssh", 22, true
-	}
-	for _, method := range methods {
-		switch {
-		case method == "ssh":
-			return "ssh", 22, true
-		case strings.HasPrefix(method, "ssh:"):
-			p, err := strconv.Atoi(strings.TrimPrefix(method, "ssh:"))
-			if err == nil && p > 0 {
-				return "ssh", p, true
-			}
-		case method == "telnet":
-			return "telnet", 23, true
-		case strings.HasPrefix(method, "telnet:"):
-			p, err := strconv.Atoi(strings.TrimPrefix(method, "telnet:"))
-			if err == nil && p > 0 {
-				return "telnet", p, true
-			}
-		}
-	}
-	return "", 0, false
 }
 
 func runNative(ctx context.Context, hostname string, port int, deviceType string, creds config.Credentials, commands []string, timeout time.Duration, noEnable, autoEnable, interactive bool) error {
@@ -299,4 +271,3 @@ func wantsEnable(deviceType string) bool {
 		return false
 	}
 }
-

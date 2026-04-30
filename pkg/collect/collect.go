@@ -4,7 +4,7 @@ package collect
 type CollectStatus int
 
 const (
-	StatusSuccess   CollectStatus = iota
+	StatusSuccess CollectStatus = iota
 	StatusFailed
 	StatusUnchanged
 )

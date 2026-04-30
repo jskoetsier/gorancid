@@ -360,9 +360,9 @@ func TestDiffConfigWithChanges(t *testing.T) {
 
 func TestIsCommandHeader(t *testing.T) {
 	tests := []struct {
-		line    string
-		cmd     string
-		expect  bool
+		line   string
+		cmd    string
+		expect bool
 	}{
 		{"show version", "show version", true},
 		{"am6-lfs-a06-p01#show version", "show version", true},

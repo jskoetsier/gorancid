@@ -313,10 +313,10 @@ var (
 	// BGP neighbor passwords
 	reEOSBgpPassword = regexp.MustCompile(`^(\s*neighbor\s+\S+\s+password)\s+\S+(.*)`)
 	// OSPF authentication
-	reEOSOspfKey     = regexp.MustCompile(`^(\s*ip ospf authentication-key)\s+\S+(.*)`)
-	reEOSOspfMsgKey  = regexp.MustCompile(`^(\s*ip ospf message-digest-key)\s+\S+(.*)`)
-	reEOSIsisKey     = regexp.MustCompile(`^(\s*isis authentication-key)\s+\S+(.*)`)
-	reEOSIsisMd5Key  = regexp.MustCompile(`^(\s*isis authentication-type md5)\s+\S+(.*)`)
+	reEOSOspfKey    = regexp.MustCompile(`^(\s*ip ospf authentication-key)\s+\S+(.*)`)
+	reEOSOspfMsgKey = regexp.MustCompile(`^(\s*ip ospf message-digest-key)\s+\S+(.*)`)
+	reEOSIsisKey    = regexp.MustCompile(`^(\s*isis authentication-key)\s+\S+(.*)`)
+	reEOSIsisMd5Key = regexp.MustCompile(`^(\s*isis authentication-type md5)\s+\S+(.*)`)
 	// RCS tags
 	reEOSRCSTag = regexp.MustCompile(`\$((Revision|Id):)[^$]*\$`)
 )

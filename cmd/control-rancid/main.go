@@ -15,8 +15,8 @@ import (
 	"gorancid/pkg/devicetype"
 	"gorancid/pkg/git"
 	"gorancid/pkg/notify"
-	"gorancid/pkg/par"
 	"gorancid/pkg/parse"
+	"gorancid/pkg/pool"
 	"gorancid/pkg/version"
 )
 
@@ -85,7 +85,7 @@ func main() {
 
 	// Build parallel jobs — one per active device
 	type jobMeta struct{ hostname string }
-	var jobs []par.Job
+	var jobs []pool.Job
 	var meta []jobMeta
 
 	selected, selSpecs, selCreds, skipped := selectDevices(devices, typeSpecs, credStore, *onlyDevice)
@@ -128,7 +128,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	results := par.Run(context.Background(), jobs, cfg.ParCount)
+	results := pool.Run(context.Background(), jobs, cfg.ParCount)
 
 	// Gather successful hosts for commit
 	var changed []string

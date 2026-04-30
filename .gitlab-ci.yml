@@ -12,6 +12,8 @@ test:
   variables:
     CGO_ENABLED: "1"
   script:
+    - gofmt -d -s . | tee /tmp/gofmt.diff
+    - '[ ! -s /tmp/gofmt.diff ] || (echo "gofmt found differences — run gofmt -w -s ." && exit 1)'
     - go test ./... -v -race
   rules:
     - when: always

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"gorancid/pkg/config"
+	"gorancid/pkg/connect"
 	"gorancid/pkg/devicetype"
 )
 
@@ -18,15 +19,15 @@ func TestSplitCommands(t *testing.T) {
 	}
 }
 
-func TestFirstNativeTransportOrder(t *testing.T) {
-	kind, port, ok := firstNativeTransport([]string{"telnet", "ssh:2222"})
+func TestSelectNativeTransportOrder(t *testing.T) {
+	kind, port, ok := connect.SelectNativeTransport([]string{"telnet", "ssh:2222"}, 22)
 	if !ok {
 		t.Fatal("expected transport")
 	}
 	if kind != "telnet" || port != 23 {
 		t.Fatalf("got %s:%d, want telnet:23 (first method wins)", kind, port)
 	}
-	kind, port, ok = firstNativeTransport([]string{"ssh:2222", "telnet"})
+	kind, port, ok = connect.SelectNativeTransport([]string{"ssh:2222", "telnet"}, 22)
 	if !ok || kind != "ssh" || port != 2222 {
 		t.Fatalf("got %s:%d, want ssh:2222", kind, port)
 	}
@@ -116,4 +117,3 @@ func TestEnsureParserCoverage(t *testing.T) {
 		t.Fatal("expected fortiscp to inherit native FortiGate parser coverage")
 	}
 }
-

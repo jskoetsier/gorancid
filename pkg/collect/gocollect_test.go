@@ -3,6 +3,7 @@ package collect
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"gorancid/pkg/connect"
@@ -18,7 +19,7 @@ type mockSession struct {
 }
 
 func (m *mockSession) Connect(ctx context.Context) error { return nil }
-func (m *mockSession) Close() error                    { return nil }
+func (m *mockSession) Close() error                      { return nil }
 func (m *mockSession) RunCommand(ctx context.Context, cmd string) ([]byte, error) {
 	if err, ok := m.errs[cmd]; ok {
 		return nil, err
@@ -63,7 +64,7 @@ func TestIsConfigCommand(t *testing.T) {
 func TestCollectOutputSuccess(t *testing.T) {
 	m := &mockSession{
 		outputs: map[string][]byte{
-			"show version":     []byte("Version 1.0\n"),
+			"show version":        []byte("Version 1.0\n"),
 			"show running-config": []byte("interface eth0\n"),
 		},
 	}
@@ -102,8 +103,7 @@ func TestCollectOutputCommandError(t *testing.T) {
 		t.Fatal("expected error for failed command, got nil")
 	}
 	if !errors.Is(err, errors.New("timeout")) {
-		// The error should wrap the underlying cause.
-		if !contains(err.Error(), "timeout") {
+		if !strings.Contains(err.Error(), "timeout") {
 			t.Errorf("expected error containing 'timeout', got %v", err)
 		}
 	}
@@ -120,17 +120,4 @@ func TestCollectOutputBulkRunner(t *testing.T) {
 	if string(out) != "bulk output\n" {
 		t.Errorf("output = %q, want %q", string(out), "bulk output\n")
 	}
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsHelper(s, substr))
-}
-
-func containsHelper(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

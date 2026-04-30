@@ -19,6 +19,7 @@ var moduleParsers = map[string]string{
 // RegisterMissingParsers ensures every device type in specs has a Go parser
 // registered in pkg/parse, mirroring cmd/rancid coverage rules.
 func RegisterMissingParsers(specs map[string]DeviceSpec) {
+specLoop:
 	for name, spec := range specs {
 		if _, ok := parse.Lookup(name); ok {
 			continue
@@ -36,10 +37,9 @@ func RegisterMissingParsers(specs map[string]DeviceSpec) {
 		for _, module := range spec.Modules {
 			if target, ok := moduleParsers[strings.ToLower(module)]; ok {
 				parse.RegisterAlias(name, target)
-				goto next
+				continue specLoop
 			}
 		}
 		parse.Register(name, generic.New(name))
-	next:
 	}
 }

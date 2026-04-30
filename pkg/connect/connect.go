@@ -64,7 +64,7 @@ func NewSession(host string, defaultSSHPort int, creds config.Credentials, opts 
 	if !preferNative {
 		return nil, ErrNoNativeTransport
 	}
-	kind, port, ok := selectNativeTransport(creds.Methods, defaultSSHPort)
+	kind, port, ok := SelectNativeTransport(creds.Methods, defaultSSHPort)
 	if !ok {
 		return nil, ErrNoNativeTransport
 	}
@@ -88,7 +88,10 @@ func NewSession(host string, defaultSSHPort int, creds config.Credentials, opts 
 	}
 }
 
-func selectNativeTransport(methods []string, defaultSSHPort int) (kind string, port int, ok bool) {
+// SelectNativeTransport returns the first supported transport from a .cloginrc
+// method list ("ssh", "ssh:port", "telnet", "telnet:port") in declaration order.
+// Empty methods defaults to SSH on defaultSSHPort.
+func SelectNativeTransport(methods []string, defaultSSHPort int) (kind string, port int, ok bool) {
 	if defaultSSHPort <= 0 {
 		defaultSSHPort = 22
 	}
