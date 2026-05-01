@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.13] - 2026-05-01
+
+### Fixed
+
+- **cmd/control-rancid**: `git add` was silently failing when a device's config file did not exist on disk (e.g. SSH auth failure, timeout). Because the pool job returned `nil` even on collection failure, all devices — including ones that never wrote a file — were passed to `git add`, causing git to reject the entire command with `fatal: pathspec did not match any files`. Nothing was ever staged, committed, or pushed as a result. Job closure now returns `result.Error` so only successfully collected devices are staged.
+- **cmd/control-rancid**: `.meta` files written by the parser were never staged. Added `.meta` alongside each config file, and `router.db` is now staged as well.
+
 ## [0.4.12] - 2026-04-30
 
 ### Added

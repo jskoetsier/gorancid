@@ -117,6 +117,7 @@ func main() {
 				} else {
 					log.Printf("collect %s: %v", result.Hostname, result.Error)
 				}
+				return result.Error
 			}
 			return nil
 		})
@@ -148,7 +149,13 @@ func main() {
 	var stageFiles []string
 	for _, h := range changed {
 		stageFiles = append(stageFiles, filepath.Join("configs", h))
+		metaPath := filepath.Join(outDir, h+".meta")
+		if _, err := os.Stat(metaPath); err == nil {
+			stageFiles = append(stageFiles, filepath.Join("configs", h+".meta"))
+		}
 	}
+	// Also stage router.db if it changed.
+	stageFiles = append(stageFiles, "router.db")
 	if err := git.Add(repoDir, stageFiles); err != nil {
 		log.Printf("git add: %v", err)
 	}
