@@ -37,7 +37,6 @@ func (m *mockBulkSession) RunAll(ctx context.Context, commands []string) ([]byte
 	return m.bulkOut, m.bulkErr
 }
 
-
 func TestCollectOutputSuccess(t *testing.T) {
 	m := &mockSession{
 		outputs: map[string][]byte{
