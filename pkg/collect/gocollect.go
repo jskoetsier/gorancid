@@ -23,6 +23,13 @@ type bulkRunner interface {
 	RunAll(ctx context.Context, commands []string) ([]byte, error)
 }
 
+// scpConfigCommands is an optional interface for parsers that support SCP-based
+// config download. It returns the CLI command strings that are replaced by SCP.
+// Parsers that do not implement this interface have all their commands run via SSH.
+type scpConfigCommands interface {
+	SCPConfigCommandList() []string
+}
+
 // GoCollector runs in-process configuration collection using native SSH or Telnet
 // transport and registered parsers (same behavior as cmd/rancid).
 type GoCollector struct {
@@ -37,7 +44,7 @@ type GoCollector struct {
 
 // Run collects from the device and writes the config to OutDir/<hostname>,
 // matching the path control-rancid stages for git.
-func (c *GoCollector) Run(ctx context.Context) (Result, error) {
+func (c *GoCollector) Run(ctx context.Context) Result {
 	if c.Timeout == 0 {
 		c.Timeout = 30 * time.Second
 	}
@@ -50,12 +57,12 @@ func (c *GoCollector) Run(ctx context.Context) (Result, error) {
 			Hostname: c.Device.Hostname,
 			Status:   StatusFailed,
 			Error:    err,
-		}, nil
+		}
 	}
 	return Result{
 		Hostname: c.Device.Hostname,
 		Status:   StatusSuccess,
-	}, nil
+	}
 }
 
 // CollectDevice connects, runs the device-type command list, parses output,
@@ -70,16 +77,16 @@ func CollectDevice(ctx context.Context, hostname string, creds config.Credential
 		DeviceType: spec.Type,
 		Timeout:    timeout,
 	}
-	preferNative := false
-	if provider, ok := parser.(deviceOptsProvider); ok {
-		opts = provider.DeviceOpts()
-		if opts.Timeout == 0 {
-			opts.Timeout = timeout
-		}
-		preferNative = true
+	provider, ok := parser.(deviceOptsProvider)
+	if !ok {
+		return fmt.Errorf("device type %q has no in-process collection support: parser does not implement DeviceOpts", spec.Type)
+	}
+	opts = provider.DeviceOpts()
+	if opts.Timeout == 0 {
+		opts.Timeout = timeout
 	}
 
-	session, err := connect.NewSession(hostname, 22, creds, opts, preferNative)
+	session, err := connect.NewSession(hostname, 22, creds, opts)
 	if err != nil {
 		return err
 	}
@@ -93,7 +100,7 @@ func CollectDevice(ctx context.Context, hostname string, creds config.Credential
 	// If the device supports SCP-based config download, use that for the
 	// configuration file and only run SSH commands for metadata collection.
 	if opts.SCPConfigFile != "" {
-		allOutput, err = collectSCPAndSSH(ctx, session, opts, spec, hostname)
+		allOutput, err = collectSCPAndSSH(ctx, session, opts, spec, hostname, parser)
 	} else {
 		commandList := make([]string, 0, len(spec.Commands))
 		for _, cmd := range spec.Commands {
@@ -153,15 +160,28 @@ func collectOutput(ctx context.Context, session connect.Session, commands []stri
 // "show full-configuration" over SSH is unreliable due to paging and size.
 // If SCP download fails (e.g., SCP not enabled on device), it falls back to
 // running the config command via SSH.
-func collectSCPAndSSH(ctx context.Context, session connect.Session, opts connect.DeviceOpts, spec devicetype.DeviceSpec, hostname string) ([]byte, error) {
+//
+// Which commands are replaced by SCP is determined by the parser: if it
+// implements scpConfigCommands, those CLI strings are skipped for SSH and
+// deferred to the SCP/SFTP download path. Parsers that don't implement the
+// interface have all commands run via SSH (the SCP file is still attempted).
+func collectSCPAndSSH(ctx context.Context, session connect.Session, opts connect.DeviceOpts, spec devicetype.DeviceSpec, hostname string, parser parse.Parser) ([]byte, error) {
 	var allOutput []byte
 
-	// Collect config commands for potential fallback via SSH
+	// Build the set of CLI commands that the parser replaces via SCP download.
+	configCmdSet := make(map[string]bool)
+	if scp, ok := parser.(scpConfigCommands); ok {
+		for _, c := range scp.SCPConfigCommandList() {
+			configCmdSet[strings.ToLower(c)] = true
+		}
+	}
+
+	// Collect config commands for potential SSH fallback.
 	var configCmds []devicetype.Command
 
-	// Run SSH commands for metadata collection (skip config-download commands)
+	// Run SSH commands for metadata collection; skip SCP-replaced commands.
 	for _, cmd := range spec.Commands {
-		if isConfigCommand(cmd) {
+		if configCmdSet[strings.ToLower(cmd.CLI)] {
 			configCmds = append(configCmds, cmd)
 			continue
 		}
@@ -175,12 +195,13 @@ func collectSCPAndSSH(ctx context.Context, session connect.Session, opts connect
 		allOutput = append(allOutput, '\n')
 	}
 
-	// Try SFTP download first, then SCP, then SSH commands
+	// Try SFTP download first, then SCP, then SSH fallback.
 	if sftpDownloader, ok := session.(connect.SFTPDownloader); ok {
 		configData, err := sftpDownloader.SFTPDownload(ctx, opts.SCPConfigFile)
 		if err == nil {
-			// SFTP succeeded — inject command echo for parser section detection
-			allOutput = append(allOutput, []byte("show full-configuration\n")...)
+			for _, cmd := range configCmds {
+				allOutput = append(allOutput, []byte(cmd.CLI+"\n")...)
+			}
 			allOutput = append(allOutput, configData...)
 			allOutput = append(allOutput, '\n')
 			return allOutput, nil
@@ -190,17 +211,17 @@ func collectSCPAndSSH(ctx context.Context, session connect.Session, opts connect
 	if scpDownloader, ok := session.(connect.SCPDownloader); ok {
 		configData, err := scpDownloader.SCPDownload(ctx, opts.SCPConfigFile)
 		if err == nil {
-			// SCP succeeded — inject command echo for parser section detection
-			allOutput = append(allOutput, []byte("show full-configuration\n")...)
+			for _, cmd := range configCmds {
+				allOutput = append(allOutput, []byte(cmd.CLI+"\n")...)
+			}
 			allOutput = append(allOutput, configData...)
 			allOutput = append(allOutput, '\n')
 			return allOutput, nil
 		}
-		// SCP failed — log and fall back to SSH
 		log.Printf("scp download %s on %s: %v — falling back to SSH", opts.SCPConfigFile, hostname, err)
 	}
 
-	// Fallback: run config commands via SSH
+	// Fallback: run config commands via SSH.
 	for _, cmd := range configCmds {
 		output, err := session.RunCommand(ctx, cmd.CLI)
 		if err != nil {
@@ -212,15 +233,4 @@ func collectSCPAndSSH(ctx context.Context, session connect.Session, opts connect
 	}
 
 	return allOutput, nil
-}
-
-// isConfigCommand returns true if the command is a configuration-download command
-// (one that would be replaced by SCP download when available).
-func isConfigCommand(cmd devicetype.Command) bool {
-	handler := strings.ToUpper(cmd.Handler)
-	cli := strings.ToLower(cmd.CLI)
-	return strings.Contains(handler, "GETCONF") ||
-		strings.Contains(handler, "SHOWCONF") ||
-		strings.Contains(cli, "show full-configuration") ||
-		strings.Contains(cli, "show configuration")
 }

@@ -1,6 +1,7 @@
 package connect
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -455,15 +456,11 @@ var rePagerPrompt = regexp.MustCompile(`--More--| --More-- `)
 // from that buffer, avoiding the race where a leaked per-call pump goroutine
 // stole data meant for the next invocation.
 func (s *SSHSession) readUntilPrompt(ctx context.Context, buf []byte, timeout time.Duration) ([]byte, error) {
-	deadline := time.Now().Add(timeout)
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
 	var accumulated []byte
 
 	for {
-		remaining := time.Until(deadline)
-		if remaining <= 0 {
-			return accumulated, ErrTimeout
-		}
-
 		select {
 		case <-ctx.Done():
 			return accumulated, ctx.Err()
@@ -507,7 +504,7 @@ func (s *SSHSession) readUntilPrompt(ctx context.Context, buf []byte, timeout ti
 		select {
 		case <-ctx.Done():
 			return accumulated, ctx.Err()
-		case <-time.After(remaining):
+		case <-timer.C:
 			return accumulated, ErrTimeout
 		case <-s.readCh:
 			// loop and consume fresh data
@@ -585,43 +582,21 @@ func (s *SSHSession) SCPDownload(ctx context.Context, remotePath string) ([]byte
 		return nil, fmt.Errorf("scp start: %w", err)
 	}
 
-	timeout := s.Opts.Timeout
-	if timeout == 0 {
-		timeout = 120 * time.Second
-	}
-	deadline := time.Now().Add(timeout)
-
 	// Send initial acknowledgment
 	if _, err := stdin.Write([]byte{0}); err != nil {
 		return nil, fmt.Errorf("scp ack: %w", err)
 	}
 
+	br := bufio.NewReader(stdout)
+
 	// Read SCP file header: C<mode> <size> <filename>\n
-	var header []byte
-	buf := make([]byte, 1)
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-		}
-		if time.Now().After(deadline) {
-			return nil, ErrTimeout
-		}
-		n, err := stdout.Read(buf)
-		if n > 0 {
-			header = append(header, buf[0])
-			if buf[0] == '\n' {
-				break
-			}
-		}
-		if err != nil {
-			return nil, fmt.Errorf("scp header read: %w", err)
-		}
+	headerStr, err := br.ReadString('\n')
+	if err != nil {
+		return nil, fmt.Errorf("scp header read: %w", err)
 	}
 
 	// Parse header: C<mode> <size> <filename>
-	headerStr := strings.TrimSpace(string(header))
+	headerStr = strings.TrimSpace(headerStr)
 	if len(headerStr) == 0 || headerStr[0] != 'C' {
 		return nil, fmt.Errorf("scp: unexpected header %q", headerStr)
 	}
@@ -641,21 +616,8 @@ func (s *SSHSession) SCPDownload(ctx context.Context, remotePath string) ([]byte
 
 	// Read file content
 	content := make([]byte, fileSize)
-	totalRead := 0
-	for totalRead < int(fileSize) {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-		}
-		if time.Now().After(deadline) {
-			return nil, ErrTimeout
-		}
-		n, err := stdout.Read(content[totalRead:])
-		totalRead += n
-		if err != nil && err != io.EOF {
-			return nil, fmt.Errorf("scp read content: %w", err)
-		}
+	if _, err := io.ReadFull(br, content); err != nil {
+		return nil, fmt.Errorf("scp read content: %w", err)
 	}
 
 	// Acknowledge end of transfer
@@ -677,7 +639,7 @@ func (s *SSHSession) SCPDownload(ctx context.Context, remotePath string) ([]byte
 		}
 	}
 
-	return content[:totalRead], nil
+	return content, nil
 }
 
 // SFTPDownload downloads a file from the remote host via SFTP over the existing
@@ -698,9 +660,7 @@ func (s *SSHSession) SFTPDownload(ctx context.Context, remotePath string) ([]byt
 	if err != nil {
 		return nil, fmt.Errorf("sftp open %s: %w", remotePath, err)
 	}
-	defer f.Close()
 
-	// Read with context cancellation support
 	done := make(chan struct{})
 	var data []byte
 	var readErr error
@@ -711,8 +671,10 @@ func (s *SSHSession) SFTPDownload(ctx context.Context, remotePath string) ([]byt
 
 	select {
 	case <-ctx.Done():
+		f.Close()
 		return nil, ctx.Err()
 	case <-done:
+		f.Close()
 		if readErr != nil {
 			return nil, fmt.Errorf("sftp read %s: %w", remotePath, readErr)
 		}

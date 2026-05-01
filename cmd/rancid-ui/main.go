@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"gorancid/pkg/config"
+	"gorancid/pkg/devicetype"
 	"gorancid/pkg/git"
 	"gorancid/pkg/version"
 )
@@ -57,13 +58,22 @@ func main() {
 		log.Fatalf("templates: %v", err)
 	}
 
+	typeSpecs, err := devicetype.Load(
+		filepath.Join(*sysconfdir, "rancid.types.base"),
+		filepath.Join(*sysconfdir, "rancid.types.conf"),
+	)
+	if err != nil {
+		log.Fatalf("device types: %v", err)
+	}
+	devicetype.RegisterMissingParsers(typeSpecs)
+
 	s := &server{cfg: cfg, tmpl: tmpl}
 
 	api := &apiServer{
-		cfg:        cfg,
-		sysconfdir: *sysconfdir,
-		cloginrc:   *cloginrc,
-		timeout:    *collectTimeout,
+		cfg:       cfg,
+		cloginrc:  *cloginrc,
+		timeout:   *collectTimeout,
+		typeSpecs: typeSpecs,
 	}
 
 	mux := http.NewServeMux()

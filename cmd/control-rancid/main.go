@@ -84,9 +84,8 @@ func main() {
 	outDir := filepath.Join(cfg.BaseDir, group, "configs")
 
 	// Build parallel jobs — one per active device
-	type jobMeta struct{ hostname string }
 	var jobs []pool.Job
-	var meta []jobMeta
+	var hostnames []string
 
 	selected, selSpecs, selCreds, skipped := selectDevices(devices, typeSpecs, credStore, *onlyDevice)
 	for _, h := range skipped {
@@ -107,13 +106,10 @@ func main() {
 			FilterOpts: filterOpts,
 		}
 		jobs = append(jobs, func(ctx context.Context) error {
-			result, err := gc.Run(ctx)
-			if err != nil {
-				return err
-			}
+			result := gc.Run(ctx)
 			if result.Error != nil {
 				if errors.Is(result.Error, connect.ErrNoNativeTransport) {
-					log.Printf("collect %s: %v — add an ssh or telnet method for this host in %s (example: add method * { ssh } or { telnet })", result.Hostname, result.Error, cloginPath)
+					log.Printf("collect %s: %v — add an ssh or telnet method for this host in .cloginrc (example: add method * { ssh } or { telnet })", result.Hostname, result.Error)
 				} else {
 					log.Printf("collect %s: %v", result.Hostname, result.Error)
 				}
@@ -121,7 +117,7 @@ func main() {
 			}
 			return nil
 		})
-		meta = append(meta, jobMeta{selected[i].Hostname})
+		hostnames = append(hostnames, selected[i].Hostname)
 	}
 
 	if len(jobs) == 0 {
@@ -135,7 +131,7 @@ func main() {
 	var changed []string
 	for i, r := range results {
 		if r.Err == nil {
-			changed = append(changed, meta[i].hostname)
+			changed = append(changed, hostnames[i])
 		}
 	}
 

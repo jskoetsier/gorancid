@@ -18,10 +18,10 @@ import (
 )
 
 type apiServer struct {
-	cfg        config.Config
-	sysconfdir string
-	cloginrc   string
-	timeout    time.Duration
+	cfg       config.Config
+	cloginrc  string
+	timeout   time.Duration
+	typeSpecs map[string]devicetype.DeviceSpec
 }
 
 func (a *apiServer) allowedGroup(name string) bool {
@@ -152,21 +152,7 @@ func (a *apiServer) handleCollect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sysconfdir := a.sysconfdir
-	if sysconfdir == "" {
-		sysconfdir = "/usr/local/rancid/etc"
-	}
-	typeSpecs, err := devicetype.Load(
-		filepath.Join(sysconfdir, "rancid.types.base"),
-		filepath.Join(sysconfdir, "rancid.types.conf"),
-	)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, apiError{"load device types: " + err.Error()})
-		return
-	}
-	devicetype.RegisterMissingParsers(typeSpecs)
-
-	spec, ok := devicetype.Lookup(typeSpecs, found.Type)
+	spec, ok := devicetype.Lookup(a.typeSpecs, found.Type)
 	if !ok {
 		writeJSON(w, http.StatusInternalServerError, apiError{"unknown device type: " + found.Type})
 		return
@@ -201,18 +187,12 @@ func (a *apiServer) handleCollect(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), timeout+5*time.Second)
 	defer cancel()
 
-	result, err := gc.Run(ctx)
-	if err != nil || result.Error != nil {
-		msg := ""
-		if err != nil {
-			msg = err.Error()
-		} else {
-			msg = result.Error.Error()
-		}
-		writeJSON(w, http.StatusOK, map[string]string{
+	result := gc.Run(ctx)
+	if result.Error != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{
 			"hostname": hostname,
 			"status":   "failed",
-			"error":    msg,
+			"error":    result.Error.Error(),
 		})
 		return
 	}

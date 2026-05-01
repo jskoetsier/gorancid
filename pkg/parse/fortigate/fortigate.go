@@ -20,6 +20,11 @@ func init() {
 // FortiGateParser implements parse.Parser for Fortinet FortiGate devices.
 type FortiGateParser struct{}
 
+// SCPConfigCommandList returns the CLI commands that are replaced by SCP download.
+func (p *FortiGateParser) SCPConfigCommandList() []string {
+	return []string{"show full-configuration", "show"}
+}
+
 // DeviceOpts returns connection parameters for the SSH connector.
 func (p *FortiGateParser) DeviceOpts() connect.DeviceOpts {
 	return connect.DeviceOpts{

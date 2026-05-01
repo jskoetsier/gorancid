@@ -60,10 +60,8 @@ type SFTPDownloader interface {
 
 // NewSession returns an SSHSession or TelnetSession based on the first matching
 // method in creds.Methods (in order). Empty methods defaults to SSH on port 22.
-func NewSession(host string, defaultSSHPort int, creds config.Credentials, opts DeviceOpts, preferNative bool) (Session, error) {
-	if !preferNative {
-		return nil, ErrNoNativeTransport
-	}
+// Returns ErrNoNativeTransport if no ssh or telnet method is configured in creds.Methods.
+func NewSession(host string, defaultSSHPort int, creds config.Credentials, opts DeviceOpts) (Session, error) {
 	kind, port, ok := SelectNativeTransport(creds.Methods, defaultSSHPort)
 	if !ok {
 		return nil, ErrNoNativeTransport

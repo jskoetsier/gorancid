@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"gorancid/pkg/connect"
-	"gorancid/pkg/devicetype"
 )
 
 var _ connect.Session = (*mockSession)(nil)
@@ -38,28 +37,6 @@ func (m *mockBulkSession) RunAll(ctx context.Context, commands []string) ([]byte
 	return m.bulkOut, m.bulkErr
 }
 
-func TestIsConfigCommand(t *testing.T) {
-	tests := []struct {
-		name string
-		cmd  devicetype.Command
-		want bool
-	}{
-		{"show full-configuration", devicetype.Command{CLI: "show full-configuration", Handler: "ShowConf"}, true},
-		{"show configuration", devicetype.Command{CLI: "show configuration", Handler: "ShowConf"}, true},
-		{"GETCONF handler", devicetype.Command{CLI: "get system status", Handler: "GetConf"}, true},
-		{"SHOWCONF handler", devicetype.Command{CLI: "display config", Handler: "ShowConf"}, true},
-		{"show version", devicetype.Command{CLI: "show version", Handler: "ShowVersion"}, false},
-		{"get system status", devicetype.Command{CLI: "get system status", Handler: "ShowStatus"}, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := isConfigCommand(tt.cmd)
-			if got != tt.want {
-				t.Errorf("isConfigCommand(%+v) = %v, want %v", tt.cmd, got, tt.want)
-			}
-		})
-	}
-}
 
 func TestCollectOutputSuccess(t *testing.T) {
 	m := &mockSession{

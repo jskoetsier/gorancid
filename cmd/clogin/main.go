@@ -207,7 +207,7 @@ func canUseNative(deviceType string, methods []string) bool {
 
 func runNative(ctx context.Context, hostname string, port int, deviceType string, creds config.Credentials, commands []string, timeout time.Duration, noEnable, autoEnable, interactive bool) error {
 	opts := deviceOpts(deviceType, creds, timeout, noEnable, autoEnable)
-	session, err := connect.NewSession(hostname, port, creds, opts, true)
+	session, err := connect.NewSession(hostname, port, creds, opts)
 	if err != nil {
 		return err
 	}

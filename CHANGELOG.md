@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.14] - 2026-05-01
+
+### Fixed
+
+- **pkg/collect**: `GoCollector.Run` returned `(Result, error)` but never used the error return — all errors were in `Result.Error`, forcing callers to check two separate fields. Signature changed to `func Run(ctx) Result`; callers updated.
+- **pkg/connect**: `NewSession` took a `preferNative bool` parameter that was misleadingly named — it did not mean "prefer native", it meant "this parser implements DeviceOpts". Removed the parameter entirely. `CollectDevice` now returns a clear error ("parser does not implement DeviceOpts") before calling `NewSession`, so `ErrNoNativeTransport` from `NewSession` now exclusively means "no ssh or telnet method configured in .cloginrc". Error message in `control-rancid` updated accordingly.
+- **pkg/collect**: `isConfigCommand` used fragile string matching on handler names and CLI strings to decide which commands are replaced by SCP download — leaking FortiGate-specific logic into generic infrastructure. Removed. FortiGate parser now implements `SCPConfigCommandList() []string`; `collectSCPAndSSH` uses this interface to partition commands.
+- **pkg/connect**: `SCPDownload` read the SCP file header one byte at a time with a `time.Now()` syscall per byte. Replaced with `bufio.NewReader(stdout).ReadString('\n')`. File content read replaced with `io.ReadFull`.
+- **pkg/connect**: `readUntilPrompt` called `time.After(remaining)` on each loop iteration, leaking a timer object per iteration until the deadline fired. Replaced with a single `time.NewTimer(timeout)` hoisted before the loop, with `defer timer.Stop()`.
+- **pkg/git**: `SetRemote` swallowed all errors from `git remote add`, not just "already exists", silently falling through to `set-url` on any failure. Now calls `RemoteURL` first to determine whether the remote exists, then adds or updates accordingly.
+- **cmd/rancid-ui**: `handleCollect` returned `HTTP 200` for collection failures, forcing callers to parse the JSON body to detect errors. Changed to `HTTP 502 Bad Gateway`.
+- **cmd/rancid-ui**: `handleCollect` loaded device type files from disk and called `RegisterMissingParsers` on every request, repeatedly modifying global parser registry state. Moved to server startup; `apiServer.typeSpecs` is populated once at init.
+- **pkg/connect**: `SFTPDownload` goroutine leak — on context cancellation the goroutine continued reading until the SFTP transfer finished or the connection dropped. Now explicitly closes the file handle on cancellation to unblock the goroutine.
+- **cmd/control-rancid**: single-field `jobMeta{hostname}` struct replaced with `[]string`.
+
 ## [0.4.13] - 2026-05-01
 
 ### Fixed

@@ -42,12 +42,14 @@ func RemoteURL(dir, name string) (string, error) {
 
 // SetRemote adds the named remote if it does not exist, or updates its URL if it does.
 func SetRemote(dir, name, url string) error {
-	err := run(dir, "git", "remote", "add", name, url)
+	existing, err := RemoteURL(dir, name)
 	if err == nil {
-		return nil
+		if existing == url {
+			return nil
+		}
+		return run(dir, "git", "remote", "set-url", name, url)
 	}
-	// "already exists" — update the URL instead.
-	return run(dir, "git", "remote", "set-url", name, url)
+	return run(dir, "git", "remote", "add", name, url)
 }
 
 // Push pushes branch to remote.
