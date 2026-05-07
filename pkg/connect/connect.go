@@ -95,7 +95,7 @@ func SelectNativeTransport(methods []string, defaultSSHPort int) (kind string, p
 			if err == nil && p > 0 {
 				return "ssh", p, true
 			}
-		// telnet and telnet:PORT are no longer supported (removed per security review)
+			// telnet and telnet:PORT are no longer supported (removed per security review)
 		}
 	}
 	return "", 0, false

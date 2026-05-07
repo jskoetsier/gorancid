@@ -19,24 +19,24 @@ const (
 
 // Config holds settings parsed from rancid.conf.
 type Config struct {
-	BaseDir     string
-	LogDir      string
-	RepoRoot    string // CVSROOT env var — used as git repo base path
-	SendMail    string
-	Groups      []string
-	FilterPwds  FilterMode
-	FilterOsc   FilterMode
-	NoCommStr   bool
-	ParCount    int
-	OldTime     int
-	LockTime    int
-	MaxRounds   int
-	MailDomain  string
-	MailOpts    string
-	MailSplit   int
-	MailHeaders string
-	GitRemote          string // GIT_REMOTE — if set, configs are pushed here after each collection run
-	SSHStrictHostKey   bool   // SSH_STRICT_HOST_KEY_CHECKING=1 enables known_hosts verification (default false for RANCID compat)
+	BaseDir          string
+	LogDir           string
+	RepoRoot         string // CVSROOT env var — used as git repo base path
+	SendMail         string
+	Groups           []string
+	FilterPwds       FilterMode
+	FilterOsc        FilterMode
+	NoCommStr        bool
+	ParCount         int
+	OldTime          int
+	LockTime         int
+	MaxRounds        int
+	MailDomain       string
+	MailOpts         string
+	MailSplit        int
+	MailHeaders      string
+	GitRemote        string // GIT_REMOTE — if set, configs are pushed here after each collection run
+	SSHStrictHostKey bool   // SSH_STRICT_HOST_KEY_CHECKING=1 enables known_hosts verification (default false for RANCID compat)
 }
 
 // assignRE matches KEY=value lines, ignoring trailing ; export KEY and comments.
