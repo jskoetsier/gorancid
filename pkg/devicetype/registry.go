@@ -23,6 +23,7 @@ type DeviceSpec struct {
 	InLoop   string    // inloop function name
 	Commands []Command // ordered list of commands to run
 	Timeout  time.Duration
+	Parser   string // explicit Go parser name (e.g. "ios"); empty = infer from type/alias/module
 }
 
 // Load reads rancid.types.base then rancid.types.conf.
@@ -106,6 +107,8 @@ func loadFile(path string, specs map[string]DeviceSpec, skip map[string]bool) er
 			spec.InLoop = value
 		case "alias":
 			spec.Alias = strings.ToLower(value)
+		case "parser":
+			spec.Parser = strings.ToLower(value)
 		case "timeout":
 			var secs float64
 			fmt.Sscanf(value, "%f", &secs)

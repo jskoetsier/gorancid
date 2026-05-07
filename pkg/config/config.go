@@ -35,7 +35,8 @@ type Config struct {
 	MailOpts    string
 	MailSplit   int
 	MailHeaders string
-	GitRemote   string // GIT_REMOTE — if set, configs are pushed here after each collection run
+	GitRemote          string // GIT_REMOTE — if set, configs are pushed here after each collection run
+	SSHStrictHostKey   bool   // SSH_STRICT_HOST_KEY_CHECKING=1 enables known_hosts verification (default false for RANCID compat)
 }
 
 // assignRE matches KEY=value lines, ignoring trailing ; export KEY and comments.
@@ -98,6 +99,9 @@ func Load(path string) (Config, error) {
 
 	if strings.EqualFold(env["NOCOMMSTR"], "yes") {
 		cfg.NoCommStr = true
+	}
+	if strings.EqualFold(env["SSH_STRICT_HOST_KEY_CHECKING"], "yes") || env["SSH_STRICT_HOST_KEY_CHECKING"] == "1" {
+		cfg.SSHStrictHostKey = true
 	}
 	return cfg, nil
 }

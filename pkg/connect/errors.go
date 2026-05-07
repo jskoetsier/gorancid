@@ -12,4 +12,6 @@ var (
 	// ErrNoNativeTransport indicates no ssh or telnet method is available in .cloginrc,
 	// or the device type has no parser that provides connection parameters.
 	ErrNoNativeTransport = errors.New("connect: no native transport available; check .cloginrc methods and device type parser registration")
+	// ErrHostKeyVerification indicates host key check failed when strict mode enabled.
+	ErrHostKeyVerification = errors.New("connect: SSH host key verification failed")
 )

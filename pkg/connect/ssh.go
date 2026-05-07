@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
 	"golang.org/x/sys/unix"
 
 	"gorancid/pkg/config"
@@ -67,10 +69,23 @@ func (s *SSHSession) Connect(ctx context.Context) error {
 	// ciphers for older network devices (e.g., Cisco IOS on aging hardware)
 	// that don't support modern crypto. This is a parity requirement with
 	// stock RANCID which uses an unrestricted OpenSSH client.
+	var hostKeyCB ssh.HostKeyCallback
+	if s.Opts.SSHStrictHostKey {
+		khPath := filepath.Join(os.Getenv("HOME"), ".ssh", "known_hosts")
+		if kh, err := knownhosts.New(khPath); err == nil {
+			hostKeyCB = kh
+		} else {
+			return fmt.Errorf("%w: %s: %v", ErrHostKeyVerification, khPath, err)
+		}
+	} else {
+		log.Printf("WARNING: SSH host key verification disabled (set SSH_STRICT_HOST_KEY_CHECKING=1 in rancid.conf and ensure ~/.ssh/known_hosts is populated to enable)")
+		hostKeyCB = ssh.InsecureIgnoreHostKey()
+	}
+
 	sshConfig := &ssh.ClientConfig{
 		User:            s.Creds.Username,
 		Auth:            sshAuthMethods(s.Creds),
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // RANCID doesn't check host keys
+		HostKeyCallback: hostKeyCB,
 		Timeout:         15 * time.Second,
 		Config: ssh.Config{
 			KeyExchanges: []string{

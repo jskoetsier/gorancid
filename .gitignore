@@ -9,3 +9,11 @@ docs/
 # Build output
 bin/
 dist/
+# Binaries built in root (use go build -o dist/ or make)
+/clogin
+/control-rancid
+/rancid
+/rancid-cvs
+/rancid-run
+/rancid-ui
+/*.test

@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.15] - 2026-05-07
+
+### Changed / Fixed (Linus review)
+
+- Split every parser package into focused, small files (one file per device type max; no more 600+ line monsters in iosxr/ios/junos/aeos/nxos).
+- SSH host key verification is now opt-in via `SSH_STRICT_HOST_KEY_CHECKING=1` in rancid.conf; when enabled, loads `~/.ssh/known_hosts` and fails on mismatch. Default remains insecure for RANCID compatibility, but emits a clear warning log line.
+- Telnet transport removed entirely. `SelectNativeTransport` / `NewSession` now fail fast with `ErrNoNativeTransport` (and clear message) if only telnet is requested in .cloginrc. All tests and SSH paths unaffected.
+- Root-level built binaries deleted; `.gitignore` updated to ignore `/clogin`, `/rancid*`, `/*.test` etc.; all builds documented to output under `dist/`.
+- Device capability lookup centralized: `DeviceSpec` now has an explicit `Parser` field (populated from optional `parser:` directive in rancid.types.*). `coverage.go` duplication reduced; parser registration and alias logic now derive from the single spec.
+- Parallel collector (`pool.Run`) now respects context cancellation and early-exits. `control-rancid` aggregates failures as structured `collect.CollectionError` (with `Unwrap`) instead of raw strings; logs per-device failures and continues.
+
 ## [0.4.14] - 2026-05-01
 
 ### Fixed

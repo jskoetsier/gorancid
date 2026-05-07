@@ -26,12 +26,24 @@ func Run(ctx context.Context, jobs []Job, concurrency int) []Result {
 	var wg sync.WaitGroup
 
 	for i, job := range jobs {
+		select {
+		case <-ctx.Done():
+			// early exit on cancel, remaining results have nil Err (not run)
+			wg.Wait()
+			return results
+		default:
+		}
 		wg.Add(1)
 		sem <- struct{}{}
 		go func(idx int, j Job) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			results[idx] = Result{Index: idx, Err: j(ctx)}
+			select {
+			case <-ctx.Done():
+				results[idx] = Result{Index: idx, Err: ctx.Err()}
+			default:
+				results[idx] = Result{Index: idx, Err: j(ctx)}
+			}
 		}(i, job)
 	}
 	wg.Wait()

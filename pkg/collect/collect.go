@@ -16,3 +16,18 @@ type Result struct {
 	Diff     []byte
 	Error    error
 }
+
+// CollectionError is a structured error for one device failure, usable with errors.Is/As.
+type CollectionError struct {
+	Device string
+	Err    error
+}
+
+func (e CollectionError) Error() string {
+	if e.Err != nil {
+		return e.Device + ": " + e.Err.Error()
+	}
+	return e.Device + ": unknown error"
+}
+
+func (e CollectionError) Unwrap() error { return e.Err }

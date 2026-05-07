@@ -24,6 +24,10 @@ specLoop:
 		if _, ok := parse.Lookup(name); ok {
 			continue
 		}
+		if spec.Parser != "" {
+			parse.RegisterAlias(name, spec.Parser)
+			continue
+		}
 		if strings.HasPrefix(strings.ToLower(name), "forti") {
 			parse.RegisterAlias(name, "fortigate")
 			continue

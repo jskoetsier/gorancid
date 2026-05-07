@@ -20,12 +20,10 @@ func TestSplitCommands(t *testing.T) {
 }
 
 func TestSelectNativeTransportOrder(t *testing.T) {
+	// telnet first is now unsupported, falls through to ssh
 	kind, port, ok := connect.SelectNativeTransport([]string{"telnet", "ssh:2222"}, 22)
-	if !ok {
-		t.Fatal("expected transport")
-	}
-	if kind != "telnet" || port != 23 {
-		t.Fatalf("got %s:%d, want telnet:23 (first method wins)", kind, port)
+	if !ok || kind != "ssh" || port != 2222 {
+		t.Fatalf("got %s:%d, want ssh:2222 (telnet skipped)", kind, port)
 	}
 	kind, port, ok = connect.SelectNativeTransport([]string{"ssh:2222", "telnet"}, 22)
 	if !ok || kind != "ssh" || port != 2222 {
@@ -40,8 +38,8 @@ func TestCanUseNative(t *testing.T) {
 	if canUseNative("unknown", []string{"ssh"}) {
 		t.Fatal("unexpected native support for unknown type")
 	}
-	if !canUseNative("ios", []string{"telnet"}) {
-		t.Fatal("expected native telnet support for ios when parser exposes DeviceOpts")
+	if !canUseNative("ios", []string{"ssh"}) {
+		t.Fatal("expected native ssh support for ios when parser exposes DeviceOpts")
 	}
 }
 

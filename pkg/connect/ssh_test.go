@@ -34,23 +34,20 @@ func TestNewSessionSSH(t *testing.T) {
 	}
 }
 
-func TestNewSessionTelnet(t *testing.T) {
-	s, err := NewSession("sw-01", 22, config.Credentials{Methods: []string{"telnet"}}, DeviceOpts{})
-	if err != nil {
-		t.Fatalf("NewSession: %v", err)
-	}
-	if _, ok := s.(*TelnetSession); !ok {
-		t.Fatalf("expected *TelnetSession, got %T", s)
+func TestNewSessionTelnetUnsupported(t *testing.T) {
+	_, err := NewSession("sw-01", 22, config.Credentials{Methods: []string{"telnet"}}, DeviceOpts{})
+	if !errors.Is(err, ErrNoNativeTransport) {
+		t.Fatalf("expected ErrNoNativeTransport for telnet, got %v", err)
 	}
 }
 
-func TestNewSessionPrefersFirstMethod(t *testing.T) {
+func TestNewSessionPrefersSSHOverTelnet(t *testing.T) {
 	s, err := NewSession("sw-01", 22, config.Credentials{Methods: []string{"telnet", "ssh"}}, DeviceOpts{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := s.(*TelnetSession); !ok {
-		t.Fatalf("expected telnet first, got %T", s)
+	if _, ok := s.(*SSHSession); !ok {
+		t.Fatalf("expected SSH first (telnet unsupported), got %T", s)
 	}
 }
 

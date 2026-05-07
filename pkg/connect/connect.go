@@ -34,6 +34,8 @@ type DeviceOpts struct {
 	// configuration via SCP instead of running show commands. The value is
 	// the remote file path (e.g. "fgt-config" for FortiGate).
 	SCPConfigFile string
+	// SSHStrictHostKey enables known_hosts verification (opt-in, default false for compat).
+	SSHStrictHostKey bool
 }
 
 // Session is the interface for interacting with a network device.
@@ -58,32 +60,20 @@ type SFTPDownloader interface {
 	SFTPDownload(ctx context.Context, remotePath string) ([]byte, error)
 }
 
-// NewSession returns an SSHSession or TelnetSession based on the first matching
+// NewSession returns an SSHSession based on the first matching
 // method in creds.Methods (in order). Empty methods defaults to SSH on port 22.
-// Returns ErrNoNativeTransport if no ssh or telnet method is configured in creds.Methods.
+// Returns ErrNoNativeTransport if no ssh method is configured (telnet is no longer supported).
 func NewSession(host string, defaultSSHPort int, creds config.Credentials, opts DeviceOpts) (Session, error) {
 	kind, port, ok := SelectNativeTransport(creds.Methods, defaultSSHPort)
-	if !ok {
+	if !ok || kind != "ssh" {
 		return nil, ErrNoNativeTransport
 	}
-	switch kind {
-	case "ssh":
-		return &SSHSession{
-			Host:  host,
-			Port:  port,
-			Creds: creds,
-			Opts:  opts,
-		}, nil
-	case "telnet":
-		return &TelnetSession{
-			Host:  host,
-			Port:  port,
-			Creds: creds,
-			Opts:  opts,
-		}, nil
-	default:
-		return nil, ErrNoNativeTransport
-	}
+	return &SSHSession{
+		Host:  host,
+		Port:  port,
+		Creds: creds,
+		Opts:  opts,
+	}, nil
 }
 
 // SelectNativeTransport returns the first supported transport from a .cloginrc
@@ -105,13 +95,7 @@ func SelectNativeTransport(methods []string, defaultSSHPort int) (kind string, p
 			if err == nil && p > 0 {
 				return "ssh", p, true
 			}
-		case method == "telnet":
-			return "telnet", 23, true
-		case strings.HasPrefix(method, "telnet:"):
-			p, err := strconv.Atoi(strings.TrimPrefix(method, "telnet:"))
-			if err == nil && p > 0 {
-				return "telnet", p, true
-			}
+		// telnet and telnet:PORT are no longer supported (removed per security review)
 		}
 	}
 	return "", 0, false

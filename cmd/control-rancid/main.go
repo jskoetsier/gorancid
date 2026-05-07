@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 
 	"gorancid/pkg/collect"
 	"gorancid/pkg/config"
@@ -125,13 +127,24 @@ func main() {
 		os.Exit(0)
 	}
 
-	results := pool.Run(context.Background(), jobs, cfg.ParCount)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+	results := pool.Run(ctx, jobs, cfg.ParCount)
 
-	// Gather successful hosts for commit
+	// Gather successful hosts for commit; collect structured errors for failures
 	var changed []string
+	var collErrs []collect.CollectionError
 	for i, r := range results {
 		if r.Err == nil {
 			changed = append(changed, hostnames[i])
+		} else {
+			collErrs = append(collErrs, collect.CollectionError{Device: hostnames[i], Err: r.Err})
+		}
+	}
+	if len(collErrs) > 0 {
+		log.Printf("collection completed with %d failures", len(collErrs))
+		for _, ce := range collErrs {
+			log.Printf("  %s", ce.Error())
 		}
 	}
 
