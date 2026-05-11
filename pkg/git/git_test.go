@@ -1,9 +1,14 @@
 package git_test
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"gorancid/pkg/git"
 )
@@ -196,5 +201,73 @@ func TestPush(t *testing.T) {
 	}
 	if ts.IsZero() {
 		t.Error("expected remote to have a commit after push")
+	}
+}
+
+func TestPushContext_AlreadyCanceled(t *testing.T) {
+	dir := t.TempDir()
+	if err := git.Init(dir); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err := git.PushContext(ctx, dir, "origin", "main")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got %v", err)
+	}
+}
+
+func TestPushContext_DeadlineExceeded(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			go func(conn net.Conn) {
+				defer conn.Close()
+				time.Sleep(5 * time.Minute)
+			}(c)
+		}
+	}()
+
+	host := ln.Addr().String()
+	remoteURL := fmt.Sprintf("http://%s/dummy.git", host)
+
+	local := t.TempDir()
+	if err := git.Init(local); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	file := filepath.Join(local, "router.cfg")
+	if err := os.WriteFile(file, []byte("hostname switch1\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := git.Add(local, []string{"router.cfg"}); err != nil {
+		t.Fatalf("Add: %v", err)
+	}
+	if err := git.Commit(local, "initial"); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	if err := git.SetRemote(local, "origin", remoteURL); err != nil {
+		t.Fatalf("SetRemote: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 400*time.Millisecond)
+	defer cancel()
+	pushErr := git.PushContext(ctx, local, "origin", "main")
+	if !errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		t.Fatalf("expected expired push context, ctx.Err()=%v", ctx.Err())
+	}
+	if pushErr == nil {
+		t.Fatal("expected non-nil error from timed-out push")
 	}
 }

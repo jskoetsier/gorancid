@@ -32,6 +32,9 @@ func TestLoad(t *testing.T) {
 	if !cfg.NoCommStr {
 		t.Error("NoCommStr should be true")
 	}
+	if cfg.GitPushTimeoutSec != 900 {
+		t.Errorf("GitPushTimeoutSec default when unset = %d, want 900", cfg.GitPushTimeoutSec)
+	}
 }
 
 func TestLoadGitRemote(t *testing.T) {
@@ -67,5 +70,28 @@ func TestLoadDefaults(t *testing.T) {
 	}
 	if cfg.MaxRounds != 4 {
 		t.Errorf("MaxRounds default = %d, want 4", cfg.MaxRounds)
+	}
+	if cfg.GitPushTimeoutSec != 900 {
+		t.Errorf("GitPushTimeoutSec default when unset = %d, want 900", cfg.GitPushTimeoutSec)
+	}
+}
+
+func TestLoadGitPushTimeoutZero(t *testing.T) {
+	cfg, err := config.Load("testdata/rancid_git_push_timeout_zero.conf")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.GitPushTimeoutSec != 0 {
+		t.Errorf("GitPushTimeoutSec = %d, want 0 (unlimited)", cfg.GitPushTimeoutSec)
+	}
+}
+
+func TestLoadGitPushTimeoutExplicit(t *testing.T) {
+	cfg, err := config.Load("testdata/rancid_git_push_timeout_300.conf")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.GitPushTimeoutSec != 300 {
+		t.Errorf("GitPushTimeoutSec = %d, want 300", cfg.GitPushTimeoutSec)
 	}
 }

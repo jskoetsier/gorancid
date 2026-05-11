@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"gorancid/pkg/config"
 	"gorancid/pkg/devicetype"
@@ -17,7 +18,7 @@ func TestPushIfConfigured_NoOp(t *testing.T) {
 	}
 
 	// Empty GitRemote — should do nothing and not error.
-	if err := pushIfConfigured(dir, ""); err != nil {
+	if err := pushIfConfigured(dir, "", time.Minute); err != nil {
 		t.Errorf("pushIfConfigured with empty remote: %v", err)
 	}
 }
@@ -43,7 +44,7 @@ func TestPushIfConfigured_Pushes(t *testing.T) {
 		t.Fatalf("Commit: %v", err)
 	}
 
-	if err := pushIfConfigured(local, remote); err != nil {
+	if err := pushIfConfigured(local, remote, time.Minute); err != nil {
 		t.Fatalf("pushIfConfigured: %v", err)
 	}
 

@@ -19,24 +19,25 @@ const (
 
 // Config holds settings parsed from rancid.conf.
 type Config struct {
-	BaseDir          string
-	LogDir           string
-	RepoRoot         string // CVSROOT env var — used as git repo base path
-	SendMail         string
-	Groups           []string
-	FilterPwds       FilterMode
-	FilterOsc        FilterMode
-	NoCommStr        bool
-	ParCount         int
-	OldTime          int
-	LockTime         int
-	MaxRounds        int
-	MailDomain       string
-	MailOpts         string
-	MailSplit        int
-	MailHeaders      string
-	GitRemote        string // GIT_REMOTE — if set, configs are pushed here after each collection run
-	SSHStrictHostKey bool   // SSH_STRICT_HOST_KEY_CHECKING=1 enables known_hosts verification (default false for RANCID compat)
+	BaseDir           string
+	LogDir            string
+	RepoRoot          string // CVSROOT env var — used as git repo base path
+	SendMail          string
+	Groups            []string
+	FilterPwds        FilterMode
+	FilterOsc         FilterMode
+	NoCommStr         bool
+	ParCount          int
+	OldTime           int
+	LockTime          int
+	MaxRounds         int
+	MailDomain        string
+	MailOpts          string
+	MailSplit         int
+	MailHeaders       string
+	GitRemote         string // GIT_REMOTE — if set, configs are pushed here after each collection run
+	GitPushTimeoutSec int    // GIT_PUSH_TIMEOUT — max seconds for git push; 0 = unlimited; unset defaults to 900 (15m)
+	SSHStrictHostKey  bool   // SSH_STRICT_HOST_KEY_CHECKING=1 enables known_hosts verification (default false for RANCID compat)
 }
 
 // assignRE matches KEY=value lines, ignoring trailing ; export KEY and comments.
@@ -103,6 +104,17 @@ func Load(path string) (Config, error) {
 	if strings.EqualFold(env["SSH_STRICT_HOST_KEY_CHECKING"], "yes") || env["SSH_STRICT_HOST_KEY_CHECKING"] == "1" {
 		cfg.SSHStrictHostKey = true
 	}
+
+	const defaultGitPushTimeoutSec = 900
+	switch strings.TrimSpace(env["GIT_PUSH_TIMEOUT"]) {
+	case "":
+		cfg.GitPushTimeoutSec = defaultGitPushTimeoutSec
+	case "0":
+		cfg.GitPushTimeoutSec = 0
+	default:
+		cfg.GitPushTimeoutSec = intOr(env["GIT_PUSH_TIMEOUT"], defaultGitPushTimeoutSec)
+	}
+
 	return cfg, nil
 }
 

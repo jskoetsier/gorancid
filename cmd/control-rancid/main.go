@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"gorancid/pkg/collect"
 	"gorancid/pkg/config"
@@ -178,7 +179,8 @@ func main() {
 	}
 
 	// Push to remote if configured
-	if err := pushIfConfigured(repoDir, cfg.GitRemote); err != nil {
+	pushTimeout := time.Duration(cfg.GitPushTimeoutSec) * time.Second
+	if err := pushIfConfigured(repoDir, cfg.GitRemote, pushTimeout); err != nil {
 		log.Printf("git push: %v", err)
 	}
 
@@ -204,15 +206,22 @@ func main() {
 }
 
 // pushIfConfigured sets the "origin" remote to remoteURL and pushes "main".
-// It is a no-op when remoteURL is empty.
-func pushIfConfigured(repoDir, remoteURL string) error {
+// It is a no-op when remoteURL is empty. When pushTimeout is positive, the push is
+// cancelled and the git process terminated if it runs longer than pushTimeout.
+func pushIfConfigured(repoDir, remoteURL string, pushTimeout time.Duration) error {
 	if remoteURL == "" {
 		return nil
 	}
 	if err := git.SetRemote(repoDir, "origin", remoteURL); err != nil {
 		return err
 	}
-	return git.Push(repoDir, "origin", "main")
+	ctx := context.Background()
+	if pushTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, pushTimeout)
+		defer cancel()
+	}
+	return git.PushContext(ctx, repoDir, "origin", "main")
 }
 
 // selectDevices filters the router.db entries and returns the devices that should

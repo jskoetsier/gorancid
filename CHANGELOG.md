@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.16] - 2026-05-11
+
+### Added
+
+- **pkg/config**: `GIT_PUSH_TIMEOUT` — maximum seconds for each `git push` after a collection run. Unset defaults to **900** (15 minutes). Set to **`0`** to disable the watchdog (previous behaviour: wait indefinitely).
+- **pkg/git**: `PushContext` — runs `git push` under a `context.Context`; uses `exec.Cmd.WaitDelay` after cancellation so `CombinedOutput` cannot hang forever when orphaned `git-remote-http` / `send-pack` children leave pipes open.
+
+### Changed
+
+- **cmd/control-rancid**: Uses `GIT_PUSH_TIMEOUT` when pushing to `GIT_REMOTE` so a wedged push cannot block the next cron-driven collection indefinitely.
+
 ## [0.4.15] - 2026-05-07
 
 ### Changed / Fixed (Linus review)

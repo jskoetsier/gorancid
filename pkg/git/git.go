@@ -1,6 +1,7 @@
 package git
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -52,9 +53,26 @@ func SetRemote(dir, name, url string) error {
 	return run(dir, "git", "remote", "add", name, url)
 }
 
-// Push pushes branch to remote.
+// Push pushes branch to remote and waits until git exits (no deadline).
 func Push(dir, remote, branch string) error {
-	return run(dir, "git", "push", remote, branch)
+	return PushContext(context.Background(), dir, remote, branch)
+}
+
+// PushContext runs git push under ctx. When ctx is cancelled or its deadline passes,
+// the git process is terminated (along with its process group on Unix), which clears
+// wedged HTTPS/smart-HTTP pushes without leaving control-rancid blocked indefinitely.
+//
+// WaitDelay is set so that after cancellation, os/exec closes stdout/stderr pipes within 15s even if
+// orphaned subprocesses would otherwise leave CombinedOutput blocked forever.
+func PushContext(ctx context.Context, dir, remote, branch string) error {
+	cmd := exec.CommandContext(ctx, "git", "push", remote, branch)
+	cmd.Dir = dir
+	cmd.WaitDelay = 15 * time.Second
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git push %s %s: %w\n%s", remote, branch, err, out)
+	}
+	return nil
 }
 
 // Add stages files for commit.
@@ -124,7 +142,11 @@ func LastCommitTime(dir, path string) (time.Time, error) {
 }
 
 func run(dir, name string, args ...string) error {
-	cmd := exec.Command(name, args...)
+	return runGit(context.Background(), dir, name, args...)
+}
+
+func runGit(ctx context.Context, dir, name string, args ...string) error {
+	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
