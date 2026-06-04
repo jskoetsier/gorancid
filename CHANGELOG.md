@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.17] - 2026-06-04
+
+### Fixed
+
+- **cmd/clogin**: Register the Arista EOS (`aeos`) parser via side-effect import so `arista` devices from `router.db` can use native SSH. Without it, `clogin` failed with "no native transport available for type arista" even when `.cloginrc` had `ssh`.
+
 ## [0.4.16] - 2026-05-11
 
 ### Added

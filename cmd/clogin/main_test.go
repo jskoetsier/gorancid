@@ -43,6 +43,15 @@ func TestCanUseNative(t *testing.T) {
 	}
 }
 
+func TestCanUseNativeArista(t *testing.T) {
+	devicetype.RegisterMissingParsers(map[string]devicetype.DeviceSpec{
+		"arista": {Type: "arista", Modules: []string{"aeos"}},
+	})
+	if !canUseNative("arista", []string{"ssh"}) {
+		t.Fatal("expected arista (aeos module) to use native ssh transport")
+	}
+}
+
 func TestFindDeviceRouterDBOverride(t *testing.T) {
 	cfg := config.Config{}
 	path := filepath.Join("..", "..", "pkg", "config", "testdata", "router.db")

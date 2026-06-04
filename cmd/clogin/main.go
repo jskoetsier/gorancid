@@ -17,6 +17,7 @@ import (
 	"gorancid/pkg/parse"
 	"gorancid/pkg/version"
 
+	_ "gorancid/pkg/parse/aeos"
 	_ "gorancid/pkg/parse/asa"
 	_ "gorancid/pkg/parse/force10"
 	_ "gorancid/pkg/parse/fortigate"
