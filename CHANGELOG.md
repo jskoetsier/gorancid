@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.18] - 2026-06-19
+
+### Fixed
+
+- **pkg/devicetype**: `Lookup` now falls back to the `fortigate` spec for unknown device types with a `forti` prefix (e.g. Observium's custom `fortiscp` type). Without this, gorancid skipped every FortiGate in `router.db` when `fortiscp` was absent from `rancid.types.conf`.
+
 ## [0.4.17] - 2026-06-04
 
 ### Fixed

@@ -59,3 +59,31 @@ func TestLookupMissing(t *testing.T) {
 		t.Error("expected Lookup to return false for unknown type")
 	}
 }
+
+func TestLookupFortiPrefixFallback(t *testing.T) {
+	specs, err := devicetype.Load(
+		"testdata/rancid.types.base",
+		"testdata/rancid.types.conf",
+	)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	specs["fortigate"] = devicetype.DeviceSpec{
+		Type: "fortigate",
+		Commands: []devicetype.Command{
+			{CLI: "get system status", Handler: "fortigate::GetSystem"},
+			{CLI: "show", Handler: "fortigate::GetConf"},
+		},
+	}
+
+	spec, ok := devicetype.Lookup(specs, "fortiscp")
+	if !ok {
+		t.Fatal("expected fortiscp to fall back to fortigate spec")
+	}
+	if spec.Type != "fortiscp" {
+		t.Errorf("spec.Type = %q, want fortiscp", spec.Type)
+	}
+	if len(spec.Commands) != 2 {
+		t.Fatalf("spec.Commands count = %d, want 2", len(spec.Commands))
+	}
+}
