@@ -54,11 +54,20 @@ func RegisterAlias(deviceType, target string) {
 }
 
 // Lookup returns the parser for a device type, or false if none is registered.
+// Types with a "forti" prefix (e.g. Observium's "fortiscp") fall back to the
+// fortigate parser when no dedicated parser is registered, matching
+// devicetype.Lookup behavior.
 func Lookup(deviceType string) (Parser, bool) {
 	mu.RLock()
 	defer mu.RUnlock()
-	p, ok := parsers[strings.ToLower(deviceType)]
-	return p, ok
+	t := strings.ToLower(deviceType)
+	if p, ok := parsers[t]; ok {
+		return p, ok
+	}
+	if p, ok := parsers["fortigate"]; ok && strings.HasPrefix(t, "forti") {
+		return p, true
+	}
+	return nil, false
 }
 
 // RegisteredTypes returns all device type names that have a Go parser.
