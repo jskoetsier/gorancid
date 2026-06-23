@@ -87,3 +87,18 @@ func TestLookupFortiPrefixFallback(t *testing.T) {
 		t.Fatalf("spec.Commands count = %d, want 2", len(spec.Commands))
 	}
 }
+
+func TestLookupFortiSwitchNoFallback(t *testing.T) {
+	specs, err := devicetype.Load(
+		"testdata/rancid.types.base",
+		"testdata/rancid.types.conf",
+	)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	specs["fortigate"] = devicetype.DeviceSpec{Type: "fortigate"}
+
+	if _, ok := devicetype.Lookup(specs, "fortiswitch"); ok {
+		t.Fatal("fortiswitch must not fall back to fortigate spec")
+	}
+}

@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.20] - 2026-06-23
+
+### Fixed
+
+- **pkg/fortigatealias**: Centralize FortiGate-family RANCID type detection (`fortiscp`, `fortigate-full`) instead of duplicating a broad `forti*` prefix match in `devicetype`, `parse`, and `coverage`. FortiSwitch and other Fortinet OS names no longer inherit the FortiGate collector by accident.
+- **cmd/control-rancid**: Stage `router.db` only when it has git changes; exit with status 1 when every device in the run failed collection.
+
+### Added
+
+- **pkg/git**: `PathChanged` helper for porcelain status checks.
+- **pkg/fortigatealias**: Unit tests for alias matching and negative cases (`fortiswitch`, `forti-mgmt`, etc.).
+
 ## [0.4.19] - 2026-06-22
 
 ### Fixed

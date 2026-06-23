@@ -271,3 +271,32 @@ func TestPushContext_DeadlineExceeded(t *testing.T) {
 		t.Fatal("expected non-nil error from timed-out push")
 	}
 }
+
+func TestPathChanged(t *testing.T) {
+	dir := t.TempDir()
+	if err := git.Init(dir); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	rdb := filepath.Join(dir, "router.db")
+	if err := os.WriteFile(rdb, []byte("host;ios;up\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if !git.PathChanged(dir, "router.db") {
+		t.Fatal("expected untracked router.db to be reported as changed")
+	}
+	if err := git.Add(dir, []string{"router.db"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := git.Commit(dir, "add router.db"); err != nil {
+		t.Fatal(err)
+	}
+	if git.PathChanged(dir, "router.db") {
+		t.Fatal("expected clean router.db after commit")
+	}
+	if err := os.WriteFile(rdb, []byte("host;ios;up\nhost2;junos;up\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if !git.PathChanged(dir, "router.db") {
+		t.Fatal("expected modified router.db to be reported as changed")
+	}
+}

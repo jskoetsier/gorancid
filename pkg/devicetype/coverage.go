@@ -3,6 +3,7 @@ package devicetype
 import (
 	"strings"
 
+	"gorancid/pkg/fortigatealias"
 	"gorancid/pkg/parse"
 	"gorancid/pkg/parse/generic"
 )
@@ -28,7 +29,7 @@ specLoop:
 			parse.RegisterAlias(name, spec.Parser)
 			continue
 		}
-		if strings.HasPrefix(strings.ToLower(name), "forti") {
+		if fortigatealias.UsesFortiGate(name) {
 			parse.RegisterAlias(name, "fortigate")
 			continue
 		}

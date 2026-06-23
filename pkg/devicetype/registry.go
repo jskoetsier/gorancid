@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"gorancid/pkg/fortigatealias"
 )
 
 // Command maps a CLI string to a handler name from the device's Perl/Go module.
@@ -46,9 +48,7 @@ func Load(baseFile, confFile string) (map[string]DeviceSpec, error) {
 }
 
 // Lookup resolves a device type by name, following aliases.
-// Unknown types with a "forti" prefix fall back to the fortigate spec so
-// custom Observium types like "fortiscp" keep working without a dedicated
-// rancid.types.conf entry.
+// Unknown FortiGate-family aliases (e.g. fortiscp) fall back to the fortigate spec.
 // Returns the resolved DeviceSpec and true, or zero value and false.
 func Lookup(specs map[string]DeviceSpec, devtype string) (DeviceSpec, bool) {
 	seen := make(map[string]bool)
@@ -60,9 +60,11 @@ func Lookup(specs map[string]DeviceSpec, devtype string) (DeviceSpec, bool) {
 		seen[t] = true
 		spec, ok := specs[t]
 		if !ok {
-			if fg, ok := specs["fortigate"]; ok && strings.HasPrefix(t, "forti") {
-				fg.Type = devtype
-				return fg, true
+			if _, isAlias := fortigatealias.BaseType(devtype); isAlias {
+				if fg, ok := specs["fortigate"]; ok {
+					fg.Type = devtype
+					return fg, true
+				}
 			}
 			return DeviceSpec{}, false
 		}

@@ -141,6 +141,14 @@ func LastCommitTime(dir, path string) (time.Time, error) {
 	return time.Parse(time.RFC3339, s)
 }
 
+// PathChanged reports whether relpath has unstaged or staged changes in dir.
+func PathChanged(dir, relpath string) bool {
+	cmd := exec.Command("git", "status", "--porcelain", "--", relpath)
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	return err == nil && strings.TrimSpace(string(out)) != ""
+}
+
 func run(dir, name string, args ...string) error {
 	return runGit(context.Background(), dir, name, args...)
 }

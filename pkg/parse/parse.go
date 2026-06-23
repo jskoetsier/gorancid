@@ -4,6 +4,8 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+
+	"gorancid/pkg/fortigatealias"
 )
 
 // ParsedConfig is the output of a device parser.
@@ -54,9 +56,8 @@ func RegisterAlias(deviceType, target string) {
 }
 
 // Lookup returns the parser for a device type, or false if none is registered.
-// Types with a "forti" prefix (e.g. Observium's "fortiscp") fall back to the
-// fortigate parser when no dedicated parser is registered, matching
-// devicetype.Lookup behavior.
+// FortiGate-family aliases (e.g. fortiscp) fall back to the fortigate parser
+// when no dedicated parser is registered.
 func Lookup(deviceType string) (Parser, bool) {
 	mu.RLock()
 	defer mu.RUnlock()
@@ -64,8 +65,10 @@ func Lookup(deviceType string) (Parser, bool) {
 	if p, ok := parsers[t]; ok {
 		return p, ok
 	}
-	if p, ok := parsers["fortigate"]; ok && strings.HasPrefix(t, "forti") {
-		return p, true
+	if _, ok := fortigatealias.BaseType(deviceType); ok {
+		if p, ok := parsers["fortigate"]; ok {
+			return p, true
+		}
 	}
 	return nil, false
 }

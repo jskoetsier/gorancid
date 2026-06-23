@@ -22,6 +22,9 @@ func TestLookupFortiPrefixFallback(t *testing.T) {
 	if parser != fg {
 		t.Fatal("fortiscp fallback should return the same parser as fortigate")
 	}
+	if _, ok := parse.Lookup("fortiswitch"); ok {
+		t.Fatal("fortiswitch must not fall back to fortigate parser")
+	}
 }
 
 func TestLookupUnknownType(t *testing.T) {

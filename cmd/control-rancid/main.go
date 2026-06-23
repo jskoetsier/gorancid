@@ -151,6 +151,9 @@ func main() {
 
 	if len(changed) == 0 {
 		log.Println("no successful collections")
+		if len(collErrs) > 0 {
+			os.Exit(1)
+		}
 		os.Exit(0)
 	}
 
@@ -164,8 +167,10 @@ func main() {
 			stageFiles = append(stageFiles, filepath.Join("configs", h+".meta"))
 		}
 	}
-	// Also stage router.db if it changed.
-	stageFiles = append(stageFiles, "router.db")
+	// Stage router.db only when it has local changes.
+	if git.PathChanged(repoDir, "router.db") {
+		stageFiles = append(stageFiles, "router.db")
+	}
 	if err := git.Add(repoDir, stageFiles); err != nil {
 		log.Printf("git add: %v", err)
 	}
