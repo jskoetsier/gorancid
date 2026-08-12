@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.21] - 2026-08-12
+
+### Fixed
+
+- **pkg/git**: `PushContext` now places `git push` in its own process group and SIGKILLs the **entire group** on context cancel/deadline. Previously only the parent `git` was killed (`exec.CommandContext`), leaving orphaned `git-remote-https` / `send-pack` children under PID 1. On Observium this accumulated to hundreds of processes over months and filled `/var` with `.git` `tmp_*` garbage.
+
 ## [0.4.20] - 2026-06-23
 
 ### Fixed

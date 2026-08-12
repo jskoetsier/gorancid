@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -270,6 +272,39 @@ func TestPushContext_DeadlineExceeded(t *testing.T) {
 	if pushErr == nil {
 		t.Fatal("expected non-nil error from timed-out push")
 	}
+
+	// GIT_PUSH_TIMEOUT must tear down the whole process group. Killing only the
+	// parent `git` leaves orphaned git-remote-http / send-pack helpers (seen on
+	// Observium as hundreds of PPID-1 processes lasting weeks).
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		left := countProcsMatching(remoteURL)
+		if left == 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("timed-out push left %d orphan git helper process(es) matching %q", left, remoteURL)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
+// countProcsMatching returns how many processes have cmdlines containing frag.
+func countProcsMatching(frag string) int {
+	out, err := exec.Command("ps", "-ax", "-o", "command=").Output()
+	if err != nil {
+		return 0
+	}
+	n := 0
+	for _, line := range strings.Split(string(out), "\n") {
+		if strings.Contains(line, frag) && (strings.Contains(line, "git-remote-http") ||
+			strings.Contains(line, "git send-pack") ||
+			strings.Contains(line, "git remote-http") ||
+			strings.Contains(line, "git push")) {
+			n++
+		}
+	}
+	return n
 }
 
 func TestPathChanged(t *testing.T) {

@@ -1,6 +1,7 @@
 package git
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -59,20 +60,44 @@ func Push(dir, remote, branch string) error {
 }
 
 // PushContext runs git push under ctx. When ctx is cancelled or its deadline passes,
-// the git process is terminated (along with its process group on Unix), which clears
-// wedged HTTPS/smart-HTTP pushes without leaving control-rancid blocked indefinitely.
-//
-// WaitDelay is set so that after cancellation, os/exec closes stdout/stderr pipes within 15s even if
-// orphaned subprocesses would otherwise leave CombinedOutput blocked forever.
+// the whole process group is SIGKILL'd (Unix) so wedged HTTPS helpers
+// (git-remote-http / send-pack) cannot outlive control-rancid as PID-1 orphans.
 func PushContext(ctx context.Context, dir, remote, branch string) error {
-	cmd := exec.CommandContext(ctx, "git", "push", remote, branch)
-	cmd.Dir = dir
-	cmd.WaitDelay = 15 * time.Second
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("git push %s %s: %w\n%s", remote, branch, err, out)
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("git push %s %s: %w", remote, branch, err)
 	}
-	return nil
+
+	cmd := exec.Command("git", "push", remote, branch)
+	cmd.Dir = dir
+	setProcessGroup(cmd)
+
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("git push %s %s: %w", remote, branch, err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			return fmt.Errorf("git push %s %s: %w\n%s", remote, branch, err, buf.Bytes())
+		}
+		return nil
+	case <-ctx.Done():
+		killProcessGroup(cmd.Process.Pid)
+		select {
+		case <-done:
+		case <-time.After(15 * time.Second):
+		}
+		return fmt.Errorf("git push %s %s: %w\n%s", remote, branch, ctx.Err(), buf.Bytes())
+	}
 }
 
 // Add stages files for commit.

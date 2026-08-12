@@ -22,7 +22,7 @@ Optional git integration (also read from `rancid.conf`):
 | Variable | Purpose |
 |----------|---------|
 | `GIT_REMOTE` | After each group run, push commits to this remote (`origin`), branch `main`. |
-| `GIT_PUSH_TIMEOUT` | Seconds to wait for `git push` before killing it (default **900**). Use **`0`** for no limit. |
+| `GIT_PUSH_TIMEOUT` | Seconds to wait for `git push` before killing the whole process group (default **900**). Use **`0`** for no limit. |
 
 CLI binaries match the original flag interface and exit codes, so existing cron jobs and wrapper scripts work without changes.
 
