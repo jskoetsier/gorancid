@@ -2,7 +2,6 @@ package connect
 
 import (
 	"context"
-	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -23,8 +22,6 @@ type DeviceOpts struct {
 	// EnableCmd is the command to enter privileged mode (e.g. "enable").
 	// Leave empty if not needed.
 	EnableCmd string
-	// EnablePwd specifies the enable password from .cloginrc.
-	EnablePwd string
 	// DisablePagingCmd is the command to disable output paging.
 	// Many devices need this; it's also included in SetupCommands.
 	DisablePagingCmd string
@@ -79,6 +76,7 @@ func NewSession(host string, defaultSSHPort int, creds config.Credentials, opts 
 // SelectNativeTransport returns the first supported transport from a .cloginrc
 // method list ("ssh", "ssh:port", "telnet", "telnet:port") in declaration order.
 // Empty methods defaults to SSH on defaultSSHPort.
+// Telnet methods are rejected: telnet is no longer supported.
 func SelectNativeTransport(methods []string, defaultSSHPort int) (kind string, port int, ok bool) {
 	if defaultSSHPort <= 0 {
 		defaultSSHPort = 22
@@ -99,36 +97,4 @@ func SelectNativeTransport(methods []string, defaultSSHPort int) (kind string, p
 		}
 	}
 	return "", 0, false
-}
-
-// readUntil reads from r until the prompt pattern is matched or ctx expires.
-// Returns the full output read (including prompt) and any error.
-func readUntil(ctx context.Context, r io.Reader, buf []byte, match func([]byte) int, timeout time.Duration) ([]byte, error) {
-	if timeout == 0 {
-		timeout = 30 * time.Second
-	}
-	deadline := time.Now().Add(timeout)
-
-	var accumulated []byte
-	for {
-		select {
-		case <-ctx.Done():
-			return accumulated, ctx.Err()
-		default:
-		}
-		if time.Now().After(deadline) {
-			return accumulated, ErrTimeout
-		}
-
-		n, err := r.Read(buf)
-		if n > 0 {
-			accumulated = append(accumulated, buf[:n]...)
-			if idx := match(accumulated); idx >= 0 {
-				return accumulated[:idx], nil
-			}
-		}
-		if err != nil {
-			return accumulated, err
-		}
-	}
 }

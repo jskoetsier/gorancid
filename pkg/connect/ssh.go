@@ -204,14 +204,12 @@ func (s *SSHSession) Connect(ctx context.Context) error {
 	}
 
 	// Read until we see the initial prompt
-	buf := make([]byte, 4096)
 	timeout := s.Opts.Timeout
 	if timeout == 0 {
 		timeout = 30 * time.Second
 	}
 
-	_, err = s.readUntilPrompt(ctx, buf, timeout)
-	if err != nil {
+	if _, err := s.readUntilPrompt(ctx, timeout); err != nil {
 		return fmt.Errorf("waiting for initial prompt: %w", err)
 	}
 
@@ -227,8 +225,7 @@ func (s *SSHSession) Connect(ctx context.Context) error {
 		if s.Creds.EnablePwd != "" {
 			// Send the enable password
 			fmt.Fprintln(s.stdin, s.Creds.EnablePwd)
-			_, err = s.readUntilPrompt(ctx, buf, timeout)
-			if err != nil {
+			if _, err := s.readUntilPrompt(ctx, timeout); err != nil {
 				return fmt.Errorf("enable password: %w", err)
 			}
 		}
@@ -276,8 +273,7 @@ func (s *SSHSession) RunCommand(ctx context.Context, cmd string) ([]byte, error)
 	// Send the command
 	fmt.Fprintln(s.stdin, cmd)
 
-	buf := make([]byte, 4096)
-	output, err := s.readUntilPrompt(ctx, buf, timeout)
+	output, err := s.readUntilPrompt(ctx, timeout)
 	if err != nil {
 		return output, err
 	}
@@ -470,7 +466,7 @@ var rePagerPrompt = regexp.MustCompile(`--More--| --More-- `)
 // continuously reads from the pipe into a shared buffer. This function consumes
 // from that buffer, avoiding the race where a leaked per-call pump goroutine
 // stole data meant for the next invocation.
-func (s *SSHSession) readUntilPrompt(ctx context.Context, buf []byte, timeout time.Duration) ([]byte, error) {
+func (s *SSHSession) readUntilPrompt(ctx context.Context, timeout time.Duration) ([]byte, error) {
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 	var accumulated []byte

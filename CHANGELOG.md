@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.22] - 2026-09-21
+
+### Fixed
+
+- **pkg/parse**: Fixed import order in `parse_test.go` so `gofmt -s` passes; the CI `test` stage was failing on this.
+
+### Removed
+
+- **pkg/connect**: Removed dead code from a prior refactor — the unused `readUntil` helper (superseded by `SSHSession.readUntilPrompt`), its `io` import, and the unused `EnablePwd` field on `DeviceOpts` (the enable password is read from `config.Credentials.EnablePwd`, not `DeviceOpts`). `readUntilPrompt` no longer takes an unused `buf` parameter.
+
 ## [0.4.21] - 2026-08-12
 
 ### Fixed

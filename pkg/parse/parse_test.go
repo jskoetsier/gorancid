@@ -3,8 +3,8 @@ package parse_test
 import (
 	"testing"
 
-	_ "gorancid/pkg/parse/fortigate"
 	"gorancid/pkg/parse"
+	_ "gorancid/pkg/parse/fortigate"
 )
 
 func TestLookupFortiPrefixFallback(t *testing.T) {
